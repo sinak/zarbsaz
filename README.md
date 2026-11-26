@@ -9,7 +9,7 @@ A web studio for reading, editing, composing, and playing **Persian Tonbak (تن
 - **Photo Upload & Dual-Mode OCR / OMR**:
   - **AI Vision OCR**: Upload a photo (or pick from local book photos) and transcribe the full page via OpenRouter, Gemini, or OpenAI vision models.
   - **Local Offline OMR**: Built-in browser computer-vision pipeline that detects staves, barlines, noteheads, beams, and stroke symbols with zero API calls.
-- **Tonbak Web Audio Synthesizer & Player**: Physically-inspired Web Audio synthesis for every tonbak stroke, with Play Page, Play Selection, Loop, Metronome Click, BPM & Volume sliders, and live visual playhead tracking.
+- **Real Acoustic Sample-Based Tonbak Player**: Uses real recorded goblet-drum WAV samples sculpted for Persian Tonbak strokes (`tom`, `bak_r`, `bak_l`, `pelang_r`, `pelang_l`, `chap`, `eshareh` — derived from MIT-licensed `pybuka` acoustic recordings) with velocity-linked tone filtering, anti-machine-gun micro-pitch/timing humanization, wooden room reverb, Play Page, Play Selection, Loop, Metronome Click, BPM & Volume sliders, and live visual playhead tracking.
 
 ## Getting Started
 
