@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Upload,
+  Camera,
+  FileText,
   Sparkles,
   Cpu,
   Play,
@@ -10,9 +12,17 @@ import {
   Image as ImageIcon,
   Settings2,
   AlertCircle,
+  Trash2,
+  BookOpen,
 } from 'lucide-react';
-import { normalizeOcrPage, type TonbakPage } from '../types/notation';
+import {
+  createId,
+  normalizeOcrPage,
+  type TonbakBook,
+  type TonbakPage,
+} from '../types/notation';
 import { runLocalTonbakOmr } from '../lib/localOmr';
+import { renderPdfToImages } from '../lib/pdfImport';
 import { sharedTonbakPlayer } from '../lib/tonbakSynth';
 import { ScoreView } from './ScoreView';
 
@@ -22,44 +32,88 @@ interface BookPhoto {
   sizeBytes: number;
 }
 
-interface OcrModalProps {
-  open: boolean;
-  onClose: () => void;
-  onImportPage: (page: TonbakPage) => void;
+interface QueueItem {
+  id: string;
+  name: string;
+  imageDataUrl: string;
+  status: 'pending' | 'scanning' | 'done' | 'error';
+  error?: string;
+  page?: TonbakPage;
+  overlayUrl?: string;
+  summary?: string;
 }
 
-export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage }) => {
+export interface BulkImportResult {
+  pages: TonbakPage[];
+  destination:
+    | { kind: 'standalone' }
+    | { kind: 'existing-book'; bookId: string }
+    | { kind: 'new-book'; title: string; author?: string };
+}
+
+interface OcrModalProps {
+  open: boolean;
+  initialCamera?: boolean;
+  books: TonbakBook[];
+  defaultBookId?: string | null;
+  onClose: () => void;
+  onImportPages: (result: BulkImportResult) => void;
+}
+
+export const OcrModal: React.FC<OcrModalProps> = ({
+  open,
+  initialCamera = false,
+  books,
+  defaultBookId,
+  onClose,
+  onImportPages,
+}) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [bookPhotos, setBookPhotos] = useState<BookPhoto[]>([]);
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
-  const [selectedImageName, setSelectedImageName] = useState<string>('');
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
   const [ocrMode, setOcrMode] = useState<'vision' | 'local'>('vision');
   const [serverHasKey, setServerHasKey] = useState<boolean>(false);
   const [showKeySettings, setShowKeySettings] = useState(false);
   const [provider, setProvider] = useState<'openrouter' | 'gemini' | 'openai'>('openrouter');
   const [customApiKey, setCustomApiKey] = useState('');
 
+  // Destination (Standalone vs Existing Book vs New Book)
+  const [destMode, setDestMode] = useState<'standalone' | 'existing-book' | 'new-book'>(
+    defaultBookId ? 'existing-book' : 'standalone'
+  );
+  const [targetBookId, setTargetBookId] = useState<string>(defaultBookId || books[0]?.id || '');
+  const [newBookTitle, setNewBookTitle] = useState('');
+
   const [isScanning, setIsScanning] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [previewPage, setPreviewPage] = useState<TonbakPage | null>(null);
-  const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
-  const [scanSummary, setScanSummary] = useState<string | null>(null);
+  const [pdfProgress, setPdfProgress] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
 
-  // Open/close native modal dialog with showModal()
+  const activeItem = queue.find((q) => q.id === activeQueueId) || queue[0] || null;
+  const completedPages = queue.filter((q) => q.status === 'done' && q.page).map((q) => q.page!);
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
       dialog.showModal();
+      if (defaultBookId) {
+        setDestMode('existing-book');
+        setTargetBookId(defaultBookId);
+      }
+      if (initialCamera) {
+        window.setTimeout(() => cameraInputRef.current?.click(), 120);
+      }
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, initialCamera, defaultBookId]);
 
-  // Fallback light-dismiss for browsers without native `closedby="any"` support (e.g. Safari)
+  // Fallback light-dismiss for browsers without native `closedby="any"` (Safari)
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -83,9 +137,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
         event.clientY <= rect.top + rect.height &&
         rect.left <= event.clientX &&
         event.clientX <= rect.left + rect.width;
-      if (!inside) {
-        dialog.close();
-      }
+      if (!inside) dialog.close();
     };
 
     dialog.addEventListener('click', handleBackdropClick);
@@ -95,7 +147,6 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
     };
   }, [onClose]);
 
-  // Fetch workspace book photos and OCR key availability when opened
   useEffect(() => {
     if (!open) return;
     fetch('/api/book-photos')
@@ -105,35 +156,80 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
 
     fetch('/api/ocr-status')
       .then((r) => (r.ok ? r.json() : {}))
-      .then((data: { hasOpenRouterKey?: boolean; hasGeminiKey?: boolean; hasOpenAIKey?: boolean }) => {
-        const hasAny = Boolean(data.hasOpenRouterKey || data.hasGeminiKey || data.hasOpenAIKey);
-        setServerHasKey(hasAny);
-        if (!hasAny) setOcrMode('local');
-      })
+      .then(
+        (data: { hasOpenRouterKey?: boolean; hasGeminiKey?: boolean; hasOpenAIKey?: boolean }) => {
+          const hasAny = Boolean(data.hasOpenRouterKey || data.hasGeminiKey || data.hasOpenAIKey);
+          setServerHasKey(hasAny);
+          if (!hasAny) setOcrMode('local');
+        }
+      )
       .catch(() => setServerHasKey(false));
   }, [open]);
 
-  const handleFileSelected = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setSelectedImageUrl(reader.result);
-        setSelectedImageName(file.name.replace(/\.[^.]+$/, ''));
-        setPreviewPage(null);
-        setOverlayUrl(null);
-        setErrorMsg(null);
-        setScanSummary(null);
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleFilesAdded = async (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    setGlobalError(null);
+    const added: QueueItem[] = [];
+
+    for (const file of list) {
+      if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+        try {
+          setPdfProgress(`Rendering PDF "${file.name}"…`);
+          const pdfPages = await renderPdfToImages(file, (cur, tot) =>
+            setPdfProgress(`Rendering "${file.name}" — page ${cur} of ${tot}…`)
+          );
+          for (const p of pdfPages) {
+            added.push({
+              id: createId('q'),
+              name: p.name,
+              imageDataUrl: p.imageDataUrl,
+              status: 'pending',
+            });
+          }
+          // Auto-suggest creating a new book named after the PDF!
+          if (!newBookTitle && pdfPages.length > 1) {
+            setDestMode('new-book');
+            setNewBookTitle(file.name.replace(/\.pdf$/i, ''));
+          }
+        } catch (err) {
+          setGlobalError(
+            `Could not read PDF "${file.name}": ${err instanceof Error ? err.message : String(err)}`
+          );
+        } finally {
+          setPdfProgress(null);
+        }
+      } else if (file.type.startsWith('image/')) {
+        const dataUrl = await readFileAsDataUrl(file);
+        added.push({
+          id: createId('q'),
+          name: file.name.replace(/\.[^.]+$/, '') || 'Captured Photo',
+          imageDataUrl: dataUrl,
+          status: 'pending',
+        });
       }
-    };
-    reader.readAsDataURL(file);
+    }
+
+    if (added.length > 0) {
+      setQueue((prev) => [...prev, ...added]);
+      setActiveQueueId((cur) => cur || added[0].id);
+      if (added.length > 1 && destMode === 'standalone' && !newBookTitle) {
+        setDestMode('new-book');
+        setNewBookTitle('Imported Tonbak Book');
+      }
+    }
   };
 
   const handlePickBookPhoto = async (photo: BookPhoto) => {
-    setErrorMsg(null);
-    setPreviewPage(null);
-    setOverlayUrl(null);
-    setScanSummary(null);
-    setSelectedImageName(photo.filename.replace(/\.[^.]+$/, ''));
+    setGlobalError(null);
     try {
       const res = await fetch(photo.url);
       const blob = await res.blob();
@@ -143,14 +239,21 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-      setSelectedImageUrl(dataUrl);
+      const item: QueueItem = {
+        id: createId('q'),
+        name: photo.filename.replace(/\.[^.]+$/, ''),
+        imageDataUrl: dataUrl,
+        status: 'pending',
+      };
+      setQueue((prev) => [...prev, item]);
+      setActiveQueueId(item.id);
     } catch {
-      setErrorMsg(`Could not load ${photo.filename}`);
+      setGlobalError(`Could not load ${photo.filename}`);
     }
   };
 
-  const downscaleDataUrl = async (dataUrl: string, maxDim = 1600): Promise<string> => {
-    return new Promise((resolve) => {
+  const downscaleDataUrl = async (dataUrl: string, maxDim = 1600): Promise<string> =>
+    new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
@@ -160,73 +263,88 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
         const ctx = c.getContext('2d');
         if (!ctx) return resolve(dataUrl);
         ctx.drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL('image/jpeg', 0.86));
+        resolve(c.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
-  };
 
-  const handleRunOcr = async () => {
-    if (!selectedImageUrl) return;
+  const handleRunBatchOcr = async () => {
+    const targets = queue.filter((q) => q.status !== 'done');
+    if (targets.length === 0) return;
+
     setIsScanning(true);
-    setErrorMsg(null);
-    setPreviewPage(null);
-    setOverlayUrl(null);
-    setScanSummary(null);
+    setGlobalError(null);
 
-    try {
-      if (ocrMode === 'vision') {
-        const resized = await downscaleDataUrl(selectedImageUrl, 1600);
-        const res = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageDataUrl: resized,
-            provider,
-            apiKey: customApiKey.trim() || undefined,
-          }),
-        });
-        const data = (await res.json()) as {
-          parsed?: unknown;
-          model?: string;
-          error?: string;
-        };
+    for (const item of targets) {
+      setActiveQueueId(item.id);
+      setQueue((prev) =>
+        prev.map((q) => (q.id === item.id ? { ...q, status: 'scanning', error: undefined } : q))
+      );
 
-        if (!res.ok || !data.parsed) {
-          throw new Error(data.error || 'Vision OCR failed');
+      try {
+        if (ocrMode === 'vision') {
+          const resized = await downscaleDataUrl(item.imageDataUrl, 1600);
+          const res = await fetch('/api/ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageDataUrl: resized,
+              provider,
+              apiKey: customApiKey.trim() || undefined,
+            }),
+          });
+          const data = (await res.json()) as {
+            parsed?: unknown;
+            model?: string;
+            error?: string;
+          };
+          if (!res.ok || !data.parsed) {
+            throw new Error(data.error || 'Vision OCR failed');
+          }
+          const page = normalizeOcrPage(data.parsed, item.name, resized);
+          const noteCount = page.measures.reduce((sum, m) => sum + m.notes.length, 0);
+          setQueue((prev) =>
+            prev.map((q) =>
+              q.id === item.id
+                ? {
+                    ...q,
+                    status: 'done',
+                    page,
+                    summary: `AI Vision (${data.model || provider}): ${page.measures.length} bars, ${noteCount} notes`,
+                  }
+                : q
+            )
+          );
+        } else {
+          const result = await runLocalTonbakOmr(item.imageDataUrl, item.name);
+          setQueue((prev) =>
+            prev.map((q) =>
+              q.id === item.id
+                ? {
+                    ...q,
+                    status: 'done',
+                    page: result.page,
+                    overlayUrl: result.overlayDataUrl,
+                    summary: `Local OMR: ${result.stats.stavesDetected} staves, ${result.stats.measuresDetected} bars, ${result.stats.notesDetected} notes`,
+                  }
+                : q
+            )
+          );
         }
-
-        const page = normalizeOcrPage(
-          data.parsed,
-          selectedImageName || 'Scanned Page',
-          selectedImageUrl
-        );
-        const noteCount = page.measures.reduce((sum, m) => sum + m.notes.length, 0);
-        setPreviewPage(page);
-        setScanSummary(
-          `AI Vision OCR (${data.model || provider}) imported ${page.measures.length} measures & ${noteCount} notes.`
-        );
-      } else {
-        const result = await runLocalTonbakOmr(
-          selectedImageUrl,
-          selectedImageName || 'Scanned Tonbak Page'
-        );
-        setPreviewPage(result.page);
-        setOverlayUrl(result.overlayDataUrl);
-        setScanSummary(
-          `Local Offline OMR detected ${result.stats.stavesDetected} staves, ${result.stats.measuresDetected} measures, and ${result.stats.notesDetected} notes.`
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setQueue((prev) =>
+          prev.map((q) => (q.id === item.id ? { ...q, status: 'error', error: msg } : q))
         );
       }
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsScanning(false);
     }
+
+    setIsScanning(false);
   };
 
   const togglePreviewPlay = () => {
-    if (!previewPage) return;
+    if (!activeItem?.page) return;
     if (isPreviewPlaying) {
       sharedTonbakPlayer.stop();
       setIsPreviewPlaying(false);
@@ -234,17 +352,29 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
       sharedTonbakPlayer.setCallbacks({
         onStateChange: (playing) => setIsPreviewPlaying(playing),
       });
-      sharedTonbakPlayer.play(previewPage);
+      sharedTonbakPlayer.play(activeItem.page);
     }
   };
 
   const handleConfirmImport = () => {
-    if (!previewPage) return;
+    if (completedPages.length === 0) return;
     sharedTonbakPlayer.stop();
     setIsPreviewPlaying(false);
-    onImportPage(previewPage);
+
+    const destination: BulkImportResult['destination'] =
+      destMode === 'new-book'
+        ? { kind: 'new-book', title: newBookTitle.trim() || 'Imported Book' }
+        : destMode === 'existing-book' && targetBookId
+          ? { kind: 'existing-book', bookId: targetBookId }
+          : { kind: 'standalone' };
+
+    onImportPages({ pages: completedPages, destination });
+    setQueue([]);
+    setActiveQueueId(null);
     dialogRef.current?.close();
   };
+
+  const pendingCount = queue.filter((q) => q.status !== 'done').length;
 
   return (
     <dialog
@@ -256,9 +386,9 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
       <div className="ocr-dialog-inner">
         <header className="ocr-dialog-header">
           <div>
-            <h2 id="ocr-dialog-title">Scan &amp; OCR Sheet Music Photo</h2>
+            <h2 id="ocr-dialog-title">Scan &amp; Bulk Import Sheet Music</h2>
             <p className="ocr-dialog-sub">
-              Upload any photo of standard Persian tonbak notation or pick a page from your book folder.
+              Snap a photo with your phone camera, or bulk-import multiple images &amp; multi-page PDFs.
             </p>
           </div>
           <button
@@ -271,47 +401,71 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
           </button>
         </header>
 
-        {/* Source picker: Upload + Book Folder */}
+        {/* Source picker: Mobile Camera + Bulk Images/PDF + Book Folder */}
         <div className="ocr-source-grid">
-          <div
-            className="ocr-dropzone"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const file = e.dataTransfer.files?.[0];
-              if (file && file.type.startsWith('image/')) handleFileSelected(file);
-            }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload size={22} aria-hidden="true" />
-            <strong>Upload Photo</strong>
-            <span>Drop JPEG/PNG here or click to browse</span>
+          <div className="ocr-upload-actions">
+            <button
+              type="button"
+              className="ocr-camera-btn"
+              onClick={() => cameraInputRef.current?.click()}
+            >
+              <Camera size={20} aria-hidden="true" />
+              <strong>Take Photo</strong>
+              <span>Use phone camera</span>
+            </button>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
+              capture="environment"
               hidden
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileSelected(f);
+                if (e.target.files) void handleFilesAdded(e.target.files);
+                e.target.value = '';
               }}
             />
+
+            <div
+              className="ocr-dropzone"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files) void handleFilesAdded(e.dataTransfer.files);
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="dropzone-icons">
+                <Upload size={18} aria-hidden="true" />
+                <FileText size={18} aria-hidden="true" />
+              </div>
+              <strong>Images or PDFs</strong>
+              <span>Select multiple files or multi-page PDF</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                hidden
+                onChange={(e) => {
+                  if (e.target.files) void handleFilesAdded(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+            </div>
           </div>
 
           {bookPhotos.length > 0 && (
             <div className="ocr-book-strip">
               <div className="ocr-book-strip-label">
                 <ImageIcon size={14} aria-hidden="true" />
-                <span>Your Book Folder ({bookPhotos.length} photos)</span>
+                <span>Local Book Folder ({bookPhotos.length} photos) — click to queue</span>
               </div>
               <div className="ocr-book-thumbs">
                 {bookPhotos.map((p) => (
                   <button
                     key={p.filename}
                     type="button"
-                    className={`ocr-thumb-btn ${
-                      selectedImageName === p.filename.replace(/\.[^.]+$/, '') ? 'active' : ''
-                    }`}
+                    className="ocr-thumb-btn"
                     onClick={() => void handlePickBookPhoto(p)}
                   >
                     <img src={p.url} alt={p.filename} loading="lazy" />
@@ -323,7 +477,60 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
           )}
         </div>
 
-        {/* Engine Selection & Action Row */}
+        {pdfProgress && <div className="ocr-info-banner">{pdfProgress}</div>}
+
+        {/* Import Queue Strip */}
+        {queue.length > 0 && (
+          <div className="ocr-queue-bar">
+            <div className="ocr-queue-header">
+              <span>
+                Import Queue ({queue.length} page{queue.length === 1 ? '' : 's'},{' '}
+                {completedPages.length} ready)
+              </span>
+              <button
+                type="button"
+                className="btn-link"
+                disabled={isScanning}
+                onClick={() => {
+                  setQueue([]);
+                  setActiveQueueId(null);
+                }}
+              >
+                Clear Queue
+              </button>
+            </div>
+            <div className="ocr-queue-chips">
+              {queue.map((item) => (
+                <div
+                  key={item.id}
+                  className={`queue-chip ${activeItem?.id === item.id ? 'active' : ''} status-${item.status}`}
+                >
+                  <button
+                    type="button"
+                    className="queue-chip-main"
+                    onClick={() => setActiveQueueId(item.id)}
+                  >
+                    <span className="queue-dot" aria-hidden="true" />
+                    <span className="queue-chip-name">{item.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="queue-chip-del"
+                    aria-label={`Remove ${item.name}`}
+                    disabled={isScanning}
+                    onClick={() =>
+                      setQueue((prev) => prev.filter((q) => q.id !== item.id))
+                    }
+                  >
+                    <Trash2 size={11} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Engine Selection & Destination Row */}
         <div className="ocr-controls-row">
           <div className="ocr-mode-pills" role="group" aria-label="OCR engine">
             <button
@@ -354,22 +561,64 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
                 onClick={() => setShowKeySettings((v) => !v)}
               >
                 <Settings2 size={14} aria-hidden="true" />
-                <span>API Settings</span>
+                <span>API Key</span>
               </button>
             )}
             <button
               type="button"
               className="btn-primary"
-              disabled={!selectedImageUrl || isScanning}
-              onClick={() => void handleRunOcr()}
+              disabled={pendingCount === 0 || isScanning}
+              onClick={() => void handleRunBatchOcr()}
             >
               {isScanning
-                ? 'Scanning notation…'
+                ? 'Scanning queue…'
                 : ocrMode === 'vision'
-                  ? 'OCR Whole Page'
-                  : 'Run Offline OMR'}
+                  ? `OCR ${pendingCount || queue.length} Page${(pendingCount || queue.length) === 1 ? '' : 's'}`
+                  : `Offline OMR (${pendingCount || queue.length})`}
             </button>
           </div>
+        </div>
+
+        {/* Destination Book / Standalone selector */}
+        <div className="ocr-dest-row">
+          <span className="ocr-dest-label">
+            <BookOpen size={14} aria-hidden="true" /> Save to:
+          </span>
+          <select
+            aria-label="Import destination"
+            value={destMode}
+            onChange={(e) =>
+              setDestMode(e.target.value as 'standalone' | 'existing-book' | 'new-book')
+            }
+          >
+            <option value="standalone">Standalone Piece(s)</option>
+            {books.length > 0 && <option value="existing-book">Existing Book</option>}
+            <option value="new-book">Create New Book</option>
+          </select>
+
+          {destMode === 'existing-book' && books.length > 0 && (
+            <select
+              aria-label="Target book"
+              value={targetBookId}
+              onChange={(e) => setTargetBookId(e.target.value)}
+            >
+              {books.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.title}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {destMode === 'new-book' && (
+            <input
+              type="text"
+              className="ocr-new-book-input"
+              placeholder="New book title (e.g. Bahman Rajabi Vol. 1)"
+              value={newBookTitle}
+              onChange={(e) => setNewBookTitle(e.target.value)}
+            />
+          )}
         </div>
 
         {showKeySettings && ocrMode === 'vision' && (
@@ -386,7 +635,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
               </select>
             </label>
             <label className="ocr-key-input-wrap">
-              API Key {serverHasKey ? '(optional — local env key detected)' : '(required for AI Vision)'}
+              API Key {serverHasKey ? '(optional — local env key detected)' : '(required)'}
               <input
                 type="password"
                 placeholder="Paste API key or leave blank to use environment key"
@@ -397,17 +646,17 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
           </div>
         )}
 
-        {errorMsg && (
+        {(globalError || activeItem?.error) && (
           <div className="ocr-error" role="alert">
             <AlertCircle size={16} aria-hidden="true" />
-            <span>{errorMsg}</span>
+            <span>{globalError || activeItem?.error}</span>
             {ocrMode === 'vision' && (
               <button
                 type="button"
                 className="btn-link"
                 onClick={() => {
                   setOcrMode('local');
-                  setErrorMsg(null);
+                  setGlobalError(null);
                 }}
               >
                 Switch to Local Offline OMR
@@ -416,18 +665,20 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
           </div>
         )}
 
-        {scanSummary && <div className="ocr-success">{scanSummary}</div>}
+        {activeItem?.summary && <div className="ocr-success">{activeItem.summary}</div>}
 
-        {/* Side-by-side photo & recognized score preview */}
-        {selectedImageUrl && (
+        {/* Side-by-side preview of currently selected queue item */}
+        {activeItem && (
           <div className="ocr-preview-split">
             <div className="ocr-photo-pane">
               <div className="pane-caption">
-                {overlayUrl ? 'Local OMR Detection Overlay' : `Source Photo: ${selectedImageName}`}
+                {activeItem.overlayUrl
+                  ? `OMR Overlay: ${activeItem.name}`
+                  : `Source: ${activeItem.name}`}
               </div>
               <img
-                src={overlayUrl || selectedImageUrl}
-                alt="Selected sheet music page"
+                src={activeItem.overlayUrl || activeItem.imageDataUrl}
+                alt={`Sheet music page ${activeItem.name}`}
                 className="ocr-source-img"
               />
             </div>
@@ -435,7 +686,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
             <div className="ocr-score-pane">
               <div className="pane-caption">
                 <span>Recognized Notation Preview</span>
-                {previewPage && (
+                {activeItem.page && (
                   <button type="button" className="btn-mini" onClick={togglePreviewPlay}>
                     {isPreviewPlaying ? (
                       <>
@@ -443,16 +694,16 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
                       </>
                     ) : (
                       <>
-                        <Play size={12} aria-hidden="true" /> Audition on Tonbak
+                        <Play size={12} aria-hidden="true" /> Audition
                       </>
                     )}
                   </button>
                 )}
               </div>
-              {previewPage ? (
+              {activeItem.page ? (
                 <div className="ocr-score-scroll">
                   <ScoreView
-                    page={previewPage}
+                    page={activeItem.page}
                     selection={null}
                     playingPosition={null}
                     onSelectNote={() => {}}
@@ -462,11 +713,11 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
                 </div>
               ) : (
                 <div className="ocr-score-placeholder">
-                  {isScanning
+                  {activeItem.status === 'scanning'
                     ? 'Analyzing staves, beams, and tonbak symbols…'
                     : ocrMode === 'vision'
-                      ? 'Click "OCR Whole Page" above to extract all measures and notes.'
-                      : 'Click "Run Offline OMR" above to extract all measures and notes.'}
+                      ? 'Click "OCR" above to extract all measures and notes.'
+                      : 'Click "Offline OMR" above to extract all measures and notes.'}
                 </div>
               )}
             </div>
@@ -484,11 +735,13 @@ export const OcrModal: React.FC<OcrModalProps> = ({ open, onClose, onImportPage 
           <button
             type="button"
             className="btn-primary"
-            disabled={!previewPage}
+            disabled={completedPages.length === 0}
             onClick={handleConfirmImport}
           >
             <Check size={15} aria-hidden="true" />
-            <span>Import Page into Library</span>
+            <span>
+              Import {completedPages.length || ''} Piece{completedPages.length === 1 ? '' : 's'}
+            </span>
           </button>
         </footer>
       </div>

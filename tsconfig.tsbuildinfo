@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/editortoolbar.tsx","./src/components/ocrmodal.tsx","./src/components/scoreview.tsx","./src/data/samplepages.ts","./src/lib/beaming.ts","./src/lib/localomr.ts","./src/lib/notation.test.ts","./src/lib/tonbaksynth.ts","./src/types/notation.ts","./vite.config.ts"],"version":"5.9.3"}

@@ -48,8 +48,33 @@ export interface TimeSignature {
   denominator: number;
 }
 
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  createdAt: number;
+}
+
+export interface TonbakBook {
+  id: string;
+  ownerId?: string;
+  ownerUsername?: string;
+  title: string;
+  author: string;
+  description: string;
+  coverColor: string;
+  shareToken?: string;
+  isPublic?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface TonbakPage {
   id: string;
+  ownerId?: string;
+  ownerUsername?: string;
+  bookId?: string | null;
+  sortOrder?: number;
   title: string;
   subtitle?: string;
   timeSignature: TimeSignature;
@@ -57,6 +82,8 @@ export interface TonbakPage {
   tempoBeat?: 'quarter' | 'dotted-quarter';
   measures: Measure[];
   sourceImage?: string;
+  shareToken?: string;
+  isPublic?: boolean;
   createdAt: number;
   updatedAt: number;
 }

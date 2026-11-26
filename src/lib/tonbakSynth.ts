@@ -63,40 +63,60 @@ export function buildPlaybackTimeline(
 }
 
 /**
- * Physically-inspired Web Audio Persian Tonbak synthesizer.
- * Models goblet wood-body resonance + stretched goat/calfskin membrane harmonics + finger transients.
+ * Acoustic modal-synthesis Persian Tonbak engine.
+ * Models a walnut/mulberry goblet drum with stretched goatskin:
+ * - Circular membrane Bessel mode ratios (1.00, 1.59, 2.14, 2.30, 2.92)
+ * - Helmholtz air-cavity fundamental + skin tension pitch drop on impact
+ * - Layered pink-noise skin/fingertip attack transients through wood-body resonant filters
+ * - Gentle saturation + wooden room early-reflection reverb + master bus compressor
  */
 export class TonbakSynth {
   private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private reverbNode: ConvolverNode | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
-  private volume = 0.85;
+  private masterBus: GainNode | null = null;
+  private whiteNoise: AudioBuffer | null = null;
+  private pinkNoise: AudioBuffer | null = null;
+  private volume = 0.88;
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AudioCtx();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = this.volume;
 
-      // Subtle warm acoustic room reverb
+      this.masterBus = this.ctx.createGain();
+      this.masterBus.gain.value = this.volume;
+
+      // Subtle wooden-body warmth EQ
+      const warmth = this.ctx.createBiquadFilter();
+      warmth.type = 'lowshelf';
+      warmth.frequency.value = 180;
+      warmth.gain.value = 3.2;
+
+      // Gentle master compressor keeps rapid rolls & loud Toms natural and punchy
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -10;
+      comp.knee.value = 12;
+      comp.ratio.value = 3.2;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.14;
+
+      // Warm small-room acoustic ambience
       const dryGain = this.ctx.createGain();
-      dryGain.gain.value = 0.86;
+      dryGain.gain.value = 0.88;
       const wetGain = this.ctx.createGain();
-      wetGain.gain.value = 0.2;
+      wetGain.gain.value = 0.16;
 
-      this.reverbNode = this.ctx.createConvolver();
-      this.reverbNode.buffer = this.createRoomImpulse(this.ctx, 0.42, 3.2);
+      const reverb = this.ctx.createConvolver();
+      reverb.buffer = this.createRoomImpulse(this.ctx, 0.38, 3.6);
 
-      this.masterGain.connect(dryGain);
-      dryGain.connect(this.ctx.destination);
+      this.masterBus.connect(warmth);
+      warmth.connect(comp);
+      comp.connect(dryGain).connect(this.ctx.destination);
+      comp.connect(reverb).connect(wetGain).connect(this.ctx.destination);
 
-      this.masterGain.connect(this.reverbNode);
-      this.reverbNode.connect(wetGain);
-      wetGain.connect(this.ctx.destination);
-
-      this.noiseBuffer = this.createNoiseBuffer(this.ctx);
+      this.whiteNoise = this.createWhiteNoiseBuffer(this.ctx);
+      this.pinkNoise = this.createPinkNoiseBuffer(this.ctx);
     }
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
@@ -106,8 +126,8 @@ export class TonbakSynth {
 
   public setVolume(v: number) {
     this.volume = Math.max(0, Math.min(1, v));
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.015);
+    if (this.masterBus && this.ctx) {
+      this.masterBus.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.015);
     }
   }
 
@@ -115,12 +135,38 @@ export class TonbakSynth {
     return this.ensureContext().currentTime;
   }
 
-  private createNoiseBuffer(ctx: AudioContext): AudioBuffer {
-    const length = Math.floor(ctx.sampleRate * 0.15);
+  private createWhiteNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    const length = Math.floor(ctx.sampleRate * 0.18);
     const buf = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < length; i += 1) {
       data[i] = Math.random() * 2 - 1;
+    }
+    return buf;
+  }
+
+  /** Paul Kellet pink noise approximation — sounds far warmer and more like real skin than harsh white noise. */
+  private createPinkNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    const length = Math.floor(ctx.sampleRate * 0.22);
+    const buf = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    let b0 = 0,
+      b1 = 0,
+      b2 = 0,
+      b3 = 0,
+      b4 = 0,
+      b5 = 0,
+      b6 = 0;
+    for (let i = 0; i < length; i += 1) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.969 * b2 + white * 0.153852;
+      b3 = 0.8665 * b3 + white * 0.3104856;
+      b4 = 0.55 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.016898;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.14;
+      b6 = white * 0.115926;
     }
     return buf;
   }
@@ -131,30 +177,33 @@ export class TonbakSynth {
     for (let ch = 0; ch < 2; ch += 1) {
       const data = impulse.getChannelData(ch);
       for (let i = 0; i < length; i += 1) {
-        const env = Math.pow(1 - i / length, decay);
-        data[i] = (Math.random() * 2 - 1) * env * 0.45;
+        const t = i / length;
+        const env = Math.pow(1 - t, decay);
+        // Subtle low-pass smoothing on tail for warm wooden room
+        const raw = (Math.random() * 2 - 1) * env * 0.38;
+        data[i] = i > 0 ? data[i - 1] * 0.35 + raw * 0.65 : raw;
       }
     }
     return impulse;
   }
 
-  /** Play a subtle wooden metronome tick. */
+  /** Play a dry wooden metronome click. */
   public playMetronomeClick(time: number, accented = false) {
     const ctx = this.ensureContext();
-    if (!this.masterGain) return;
+    if (!this.masterBus || !this.whiteNoise) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(accented ? 1280 : 880, time);
-    gain.gain.setValueAtTime(accented ? 0.18 : 0.1, time);
-    gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.032);
-    osc.connect(gain);
-    gain.connect(this.masterGain);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(accented ? 1420 : 980, time);
+    osc.frequency.exponentialRampToValueAtTime(accented ? 1120 : 780, time + 0.015);
+    gain.gain.setValueAtTime(accented ? 0.16 : 0.09, time);
+    gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.024);
+    osc.connect(gain).connect(this.masterBus);
     osc.start(time);
-    osc.stop(time + 0.04);
+    osc.stop(time + 0.03);
   }
 
-  /** Trigger a single tonbak stroke at `time` (AudioContext seconds). */
+  /** Trigger a single realistic tonbak stroke at `time` (AudioContext seconds). */
   public triggerStroke(
     stroke: StrokeType,
     time: number,
@@ -167,27 +216,31 @@ export class TonbakSynth {
   ) {
     if (stroke === 'rest') return;
     const ctx = this.ensureContext();
-    if (!this.masterGain || !this.noiseBuffer) return;
+    if (!this.masterBus || !this.whiteNoise || !this.pinkNoise) return;
 
-    const vel = Math.max(0.15, Math.min(1.2, options.velocity ?? 0.9));
-    // Slight organic pitch variation so repeated notes feel alive
-    const microDetune = 1 + (Math.random() - 0.5) * 0.018;
+    const vel = Math.max(0.15, Math.min(1.2, options.velocity ?? 0.92));
+    // Natural human micro-variation in strike position/tension (±1.5%)
+    const humanPitch = 1 + (Math.random() - 0.5) * 0.028;
+    const humanVel = vel * (0.94 + Math.random() * 0.12);
 
     if (stroke === 'riz') {
       const totalDur = Math.max(0.12, options.durationSec ?? 0.35);
-      const stepSec = 0.046;
-      const count = Math.max(3, Math.floor(totalDur / stepSec));
+      const baseStep = 0.043;
+      const count = Math.max(3, Math.floor(totalDur / baseStep));
       for (let i = 0; i < count; i += 1) {
-        const t = time + i * stepSec;
-        const swell = 0.55 + 0.35 * Math.sin((i / Math.max(1, count - 1)) * Math.PI);
-        const subStroke: StrokeType = i % 2 === 0 ? 'bak_r' : 'bak_l';
-        const glissShift = options.glissando ? 1 + (i / count) * 0.25 : 1;
-        this.synthRimStroke(ctx, t, {
-          freq1: (subStroke === 'bak_r' ? 355 : 410) * glissShift * microDetune,
-          freq2: (subStroke === 'bak_r' ? 635 : 715) * glissShift * microDetune,
-          noiseFreq: subStroke === 'bak_r' ? 2600 : 3200,
-          decay: 0.055,
-          gain: vel * swell * 0.68,
+        const jitter = i === 0 ? 0 : (Math.random() - 0.5) * 0.004;
+        const t = Math.max(ctx.currentTime + 0.002, time + i * baseStep + jitter);
+        const swell = 0.58 + 0.38 * Math.sin((i / Math.max(1, count - 1)) * Math.PI);
+        const isRight = i % 2 === 0;
+        const gliss = options.glissando ? 1 + (i / count) * 0.32 : 1;
+        this.synthModalRim(ctx, t, {
+          fundamental: (isRight ? 305 : 355) * gliss * humanPitch,
+          decay: 0.044,
+          skinFreq: isRight ? 2100 : 2850,
+          snapFreq: isRight ? 3600 : 4400,
+          gain: humanVel * swell * 0.62,
+          toneWeight: 0.42,
+          snapWeight: 1.05,
         });
       }
       return;
@@ -195,185 +248,229 @@ export class TonbakSynth {
 
     switch (stroke) {
       case 'tom': {
-        // Deep resonant center stroke (تُم)
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const g1 = ctx.createGain();
-        const g2 = ctx.createGain();
-
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(164 * microDetune, time);
-        osc1.frequency.exponentialRampToValueAtTime(98 * microDetune, time + 0.048);
-        osc1.frequency.exponentialRampToValueAtTime(86 * microDetune, time + 0.38);
-
-        g1.gain.setValueAtTime(0.001, time);
-        g1.gain.linearRampToValueAtTime(0.95 * vel, time + 0.004);
-        g1.gain.exponentialRampToValueAtTime(0.001, time + 0.42);
-
-        // Warm goblet body second harmonic
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(255 * microDetune, time);
-        osc2.frequency.exponentialRampToValueAtTime(192 * microDetune, time + 0.14);
-
-        g2.gain.setValueAtTime(0.001, time);
-        g2.gain.linearRampToValueAtTime(0.24 * vel, time + 0.003);
-        g2.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
-
-        // Soft palm impact transient
-        const noise = ctx.createBufferSource();
-        noise.buffer = this.noiseBuffer;
-        const lpf = ctx.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.setValueAtTime(520, time);
-        const ng = ctx.createGain();
-        ng.gain.setValueAtTime(0.32 * vel, time);
-        ng.gain.exponentialRampToValueAtTime(0.001, time + 0.032);
-
-        osc1.connect(g1).connect(this.masterGain);
-        osc2.connect(g2).connect(this.masterGain);
-        noise.connect(lpf).connect(ng).connect(this.masterGain);
-
-        osc1.start(time);
-        osc2.start(time);
-        noise.start(time);
-        osc1.stop(time + 0.44);
-        osc2.stop(time + 0.18);
-        noise.stop(time + 0.05);
+        // Authentic deep center goatskin Tom (تُم):
+        // 1. Helmholtz goblet cavity + fundamental skin mode with tension pitch-drop
+        const f0 = 90 * humanPitch;
+        this.playMode(ctx, time, f0 * 1.62, f0, 0.036, 0.36, humanVel * 0.88, 'sine');
+        // 2. Circular membrane Bessel overtones (1.59x and 2.14x — non-harmonic = real drumhead!)
+        this.playMode(ctx, time, f0 * 1.59 * 1.25, f0 * 1.59, 0.022, 0.17, humanVel * 0.28, 'sine');
+        this.playMode(ctx, time, f0 * 2.14 * 1.15, f0 * 2.14, 0.016, 0.095, humanVel * 0.14, 'sine');
+        // 3. Soft fleshy finger/palm skin contact thump (pink noise lowpass + midrange wood tap)
+        this.playNoiseBurst(ctx, time, this.pinkNoise, 'bandpass', 420, 1.1, 0.028, humanVel * 0.65);
+        this.playNoiseBurst(ctx, time, this.pinkNoise, 'bandpass', 1150, 1.6, 0.014, humanVel * 0.24);
         break;
       }
 
       case 'bak_r': {
-        this.synthRimStroke(ctx, time, {
-          freq1: 335 * microDetune,
-          freq2: 605 * microDetune,
-          noiseFreq: 2450,
-          decay: 0.095,
-          gain: vel * 0.85,
+        // Right-hand Bak (بک راست): dry, crisp rim hit with clear wood-shell crack
+        this.synthModalRim(ctx, time, {
+          fundamental: 295 * humanPitch,
+          decay: 0.068,
+          skinFreq: 1850,
+          snapFreq: 3450,
+          gain: humanVel * 0.88,
+          toneWeight: 0.46,
+          snapWeight: 1.15,
         });
         break;
       }
 
       case 'bak_l': {
-        const fingerBoost = options.finger === '3' || options.finger === '=' ? 1.07 : 1.0;
-        this.synthRimStroke(ctx, time, {
-          freq1: 392 * fingerBoost * microDetune,
-          freq2: 685 * fingerBoost * microDetune,
-          noiseFreq: 3150,
-          decay: 0.08,
-          gain: vel * 0.78,
+        // Left-hand Bak (بک چپ): slightly tighter & higher rim pitch; finger 3/= brighter
+        const fingerShift = options.finger === '3' || options.finger === '=' ? 1.09 : 1.0;
+        this.synthModalRim(ctx, time, {
+          fundamental: 348 * fingerShift * humanPitch,
+          decay: 0.056,
+          skinFreq: 2450,
+          snapFreq: 4150,
+          gain: humanVel * 0.8,
+          toneWeight: 0.42,
+          snapWeight: 1.18,
         });
         break;
       }
 
       case 'pelang_r':
       case 'pelang_l': {
+        // Pelang (پلنگ): sharp, percussive finger-flick snap off the skin edge
         const isRight = stroke === 'pelang_r';
-        this.synthRimStroke(ctx, time, {
-          freq1: (isRight ? 470 : 515) * microDetune,
-          freq2: (isRight ? 860 : 940) * microDetune,
-          noiseFreq: isRight ? 4100 : 4550,
-          decay: 0.055,
-          gain: vel * 0.74,
-          snapWeight: 1.35,
+        this.synthModalRim(ctx, time, {
+          fundamental: (isRight ? 430 : 475) * humanPitch,
+          decay: 0.038,
+          skinFreq: isRight ? 3300 : 3800,
+          snapFreq: isRight ? 5200 : 5800,
+          gain: humanVel * 0.78,
+          toneWeight: 0.3,
+          snapWeight: 1.48,
         });
         break;
       }
 
       case 'chap': {
-        this.synthRimStroke(ctx, time, {
-          freq1: 235 * microDetune,
-          freq2: 455 * microDetune,
-          noiseFreq: 1650,
-          decay: 0.072,
-          gain: vel * 0.92,
-          snapWeight: 1.15,
+        // Chap / accented damped rim slap: muted lower-mid body + dry palm slap
+        this.synthModalRim(ctx, time, {
+          fundamental: 215 * humanPitch,
+          decay: 0.052,
+          skinFreq: 1320,
+          snapFreq: 2650,
+          gain: humanVel * 0.94,
+          toneWeight: 0.52,
+          snapWeight: 1.1,
         });
         break;
       }
 
       case 'eshareh': {
-        this.synthRimStroke(ctx, time, {
-          freq1: 425 * microDetune,
-          freq2: 760 * microDetune,
-          noiseFreq: 3500,
-          decay: 0.045,
-          gain: vel * 0.42,
+        // Eshareh (اشاره): delicate ghost fingertip tap near rim
+        this.synthModalRim(ctx, time, {
+          fundamental: 375 * humanPitch,
+          decay: 0.036,
+          skinFreq: 2700,
+          snapFreq: 4300,
+          gain: humanVel * 0.42,
+          toneWeight: 0.35,
+          snapWeight: 0.9,
         });
         break;
       }
     }
   }
 
-  private synthRimStroke(
+  private playMode(
     ctx: AudioContext,
     time: number,
-    params: {
-      freq1: number;
-      freq2: number;
-      noiseFreq: number;
+    startFreq: number,
+    endFreq: number,
+    bendSec: number,
+    decaySec: number,
+    peakGain: number,
+    type: OscillatorType
+  ) {
+    if (!this.masterBus) return;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFreq, time);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), time + bendSec);
+
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.linearRampToValueAtTime(peakGain, time + 0.0025);
+    g.gain.exponentialRampToValueAtTime(0.0008, time + decaySec);
+
+    osc.connect(g).connect(this.masterBus);
+    osc.start(time);
+    osc.stop(time + decaySec + 0.015);
+  }
+
+  private playNoiseBurst(
+    ctx: AudioContext,
+    time: number,
+    buffer: AudioBuffer,
+    filterType: BiquadFilterType,
+    freq: number,
+    q: number,
+    decaySec: number,
+    peakGain: number
+  ) {
+    if (!this.masterBus) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    // Start at a slight random offset in the noise buffer so consecutive hits never phase-lock
+    const offset = Math.random() * 0.05;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(freq, time);
+    filter.Q.setValueAtTime(q, time);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.linearRampToValueAtTime(peakGain, time + 0.0015);
+    g.gain.exponentialRampToValueAtTime(0.0008, time + decaySec);
+
+    src.connect(filter).connect(g).connect(this.masterBus);
+    src.start(time, offset, decaySec + 0.02);
+  }
+
+  private synthModalRim(
+    ctx: AudioContext,
+    time: number,
+    p: {
+      fundamental: number;
       decay: number;
+      skinFreq: number;
+      snapFreq: number;
       gain: number;
-      snapWeight?: number;
+      toneWeight: number;
+      snapWeight: number;
     }
   ) {
-    if (!this.masterGain || !this.noiseBuffer) return;
-    const { freq1, freq2, noiseFreq, decay, gain, snapWeight = 1 } = params;
+    if (!this.pinkNoise || !this.whiteNoise) return;
+    // Three inharmonic circular-membrane rim modes (1.00, 1.59, 2.30)
+    this.playMode(
+      ctx,
+      time,
+      p.fundamental * 1.14,
+      p.fundamental,
+      0.012,
+      p.decay,
+      p.gain * p.toneWeight * 0.65,
+      'sine'
+    );
+    this.playMode(
+      ctx,
+      time,
+      p.fundamental * 1.59,
+      p.fundamental * 1.56,
+      0.01,
+      p.decay * 0.72,
+      p.gain * p.toneWeight * 0.36,
+      'sine'
+    );
+    this.playMode(
+      ctx,
+      time,
+      p.fundamental * 2.3,
+      p.fundamental * 2.26,
+      0.008,
+      p.decay * 0.48,
+      p.gain * p.toneWeight * 0.18,
+      'sine'
+    );
 
-    // Primary rim membrane mode
-    const osc1 = ctx.createOscillator();
-    const g1 = ctx.createGain();
-    osc1.type = 'triangle';
-    osc1.frequency.setValueAtTime(freq1 * 1.18, time);
-    osc1.frequency.exponentialRampToValueAtTime(freq1, time + 0.018);
-
-    g1.gain.setValueAtTime(0.001, time);
-    g1.gain.linearRampToValueAtTime(gain * 0.62, time + 0.002);
-    g1.gain.exponentialRampToValueAtTime(0.001, time + decay);
-
-    // Upper inharmonic rim mode
-    const osc2 = ctx.createOscillator();
-    const g2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq2, time);
-
-    g2.gain.setValueAtTime(0.001, time);
-    g2.gain.linearRampToValueAtTime(gain * 0.28, time + 0.002);
-    g2.gain.exponentialRampToValueAtTime(0.001, time + decay * 0.72);
-
-    // Crisp skin/finger snap transient
-    const noise = ctx.createBufferSource();
-    noise.buffer = this.noiseBuffer;
-    const bpf = ctx.createBiquadFilter();
-    bpf.type = 'bandpass';
-    bpf.frequency.setValueAtTime(noiseFreq, time);
-    bpf.Q.setValueAtTime(1.8, time);
-
-    const ng = ctx.createGain();
-    ng.gain.setValueAtTime(gain * 0.55 * snapWeight, time);
-    ng.gain.exponentialRampToValueAtTime(0.001, time + 0.024);
-
-    osc1.connect(g1).connect(this.masterGain);
-    osc2.connect(g2).connect(this.masterGain);
-    noise.connect(bpf).connect(ng).connect(this.masterGain);
-
-    osc1.start(time);
-    osc2.start(time);
-    noise.start(time);
-    osc1.stop(time + decay + 0.02);
-    osc2.stop(time + decay + 0.02);
-    noise.stop(time + 0.04);
+    // Warm goatskin mid-crack (pink noise) + crisp fingertip transient (white noise)
+    this.playNoiseBurst(
+      ctx,
+      time,
+      this.pinkNoise,
+      'bandpass',
+      p.skinFreq,
+      1.9,
+      0.022,
+      p.gain * p.snapWeight * 0.78
+    );
+    this.playNoiseBurst(
+      ctx,
+      time,
+      this.whiteNoise,
+      'bandpass',
+      p.snapFreq,
+      2.2,
+      0.011,
+      p.gain * p.snapWeight * 0.52
+    );
   }
 
   /** Trigger a full TonbakNote including any preceding grace notes. */
   public triggerNote(note: TonbakNote, time: number, durationSec: number) {
     const ctx = this.ensureContext();
     if (note.graceNotes && note.graceNotes.length > 0) {
-      const graceSpacing = 0.036;
+      const graceSpacing = 0.034;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);
         this.triggerStroke(g.stroke, gt, {
-          velocity: 0.62,
+          velocity: 0.64,
           finger: g.finger,
         });
       });
@@ -381,7 +478,7 @@ export class TonbakSynth {
 
     const effectiveStroke: StrokeType = note.tremolo ? 'riz' : note.stroke;
     this.triggerStroke(effectiveStroke, time, {
-      velocity: note.accent ? 1.1 : 0.9,
+      velocity: note.accent ? 1.12 : 0.92,
       finger: note.finger,
       durationSec,
       glissando: note.glissando,
@@ -468,7 +565,6 @@ export class TonbakPlayer {
     const now = this.synth.getCurrentTime();
     const lookaheadSec = 0.14;
 
-    // Schedule metronome clicks if enabled
     if (this.metronome && this.totalDurationSec > 0) {
       const metroStep =
         this.page.tempoBeat === 'dotted-quarter' ? this.quarterSec * 1.5 : this.quarterSec;
@@ -487,7 +583,6 @@ export class TonbakPlayer {
       }
     }
 
-    // Schedule note events within lookahead window
     while (
       this.nextEventIdx < this.events.length &&
       this.startAudioTime + this.events[this.nextEventIdx].startSec < now + lookaheadSec
@@ -507,7 +602,6 @@ export class TonbakPlayer {
       this.nextEventIdx += 1;
     }
 
-    // Handle end of sequence / loop
     if (this.nextEventIdx >= this.events.length) {
       const endTime = this.startAudioTime + this.totalDurationSec;
       if (this.loop && endTime < now + lookaheadSec) {
