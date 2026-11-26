@@ -20,6 +20,8 @@ const PELANG_PAIR: NoteSpec['graceNotes'] = [
   { stroke: 'pelang_l' },
 ];
 
+const ESHAREH_GRACE: NoteSpec['graceNotes'] = [{ stroke: 'eshareh' }];
+
 function m(notes: TonbakNote[]): Measure {
   return { id: createId('m'), notes };
 }
@@ -31,8 +33,8 @@ function repeatM(): Measure {
 const now = Date.now();
 
 /**
- * Sample pages accurately transcribed from the user's Bahman Rajabi Tonbak book photos
- * located in this workspace (IMG_0334.jpeg, IMG_0338.jpeg, IMG_0343.jpeg).
+ * 10 pages accurately transcribed from the user's Bahman Rajabi Tonbak book photos
+ * located in this workspace (IMG_0334, 0335, 0336, 0338, 0339, 0340, 0343, 0347, 0353, 0352).
  */
 export const SAMPLE_PAGES: TonbakPage[] = [
   {
@@ -43,10 +45,9 @@ export const SAMPLE_PAGES: TonbakPage[] = [
     tempo: 96,
     tempoBeat: 'dotted-quarter',
     sourceImage: '/api/book-photos/IMG_0334.jpeg',
-    createdAt: now - 3000,
-    updatedAt: now - 3000,
+    createdAt: now - 10000,
+    updatedAt: now - 10000,
     measures: [
-      // Line 1 (IMG_0334.jpeg)
       m([
         n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
         n('bak_l', 'eighth', { finger: '2' }),
@@ -67,7 +68,6 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_r', 'eighth'),
         n('tom', 'quarter'),
       ]),
-      // Line 2
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -81,7 +81,6 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_r', 'eighth'),
         n('tom', 'quarter'),
       ]),
-      // Line 3 (with % measure repeats!)
       m([
         n('tom', 'quarter', { graceNotes: PELANG_PAIR }),
         n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -97,7 +96,6 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('tom', 'eighth'),
         n('bak_l', 'quarter', { finger: '2' }),
       ]),
-      // Line 4
       m([
         n('bak_r', 'quarter', { graceNotes: PELANG_PAIR }),
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -116,6 +114,160 @@ export const SAMPLE_PAGES: TonbakPage[] = [
     ],
   },
   {
+    id: 'book-page-19',
+    title: 'دوره ابتدایی — صفحه ۱۹',
+    subtitle: 'Page 19 (IMG_0335.jpeg) • 6/8 Pelang & Dotted-Quarter Etude',
+    timeSignature: { numerator: 6, denominator: 8 },
+    tempo: 96,
+    tempoBeat: 'dotted-quarter',
+    sourceImage: '/api/book-photos/IMG_0335.jpeg',
+    createdAt: now - 9000,
+    updatedAt: now - 9000,
+    measures: [
+      // Line 1 (IMG_0335.jpeg)
+      m([
+        n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'eighth'),
+        n('tom', 'eighth'),
+        n('tom', 'quarter'),
+      ]),
+      m([
+        n('bak_r', 'quarter', { graceNotes: PELANG_PAIR }),
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'quarter'),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('tom', 'eighth'),
+        n('bak_r', 'eighth'),
+        n('bak_r', 'quarter'),
+      ]),
+      // Line 2
+      m([
+        n('tom', 'quarter', { graceNotes: PELANG_PAIR }),
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'quarter'),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('tom', 'eighth'),
+        n('bak_r', 'eighth'),
+        n('bak_r', 'quarter'),
+      ]),
+      // Line 3
+      m([
+        n('tom', 'quarter', { graceNotes: PELANG_PAIR }),
+        n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('tom', 'quarter'),
+      ]),
+      repeatM(),
+      repeatM(),
+      m([
+        n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'eighth'),
+        n('tom', 'eighth'),
+        n('tom', 'quarter'),
+      ]),
+      // Line 5 (dotted-quarter cadences!)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'eighth'),
+        n('tom', 'quarter', { dotted: true }),
+      ]),
+      m([
+        n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('bak_r', 'eighth'),
+        n('tom', 'quarter', { dotted: true }),
+      ]),
+      m([
+        n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('tom', 'eighth'),
+        n('bak_r', 'quarter', { dotted: true }),
+      ]),
+    ],
+  },
+  {
+    id: 'book-page-30',
+    title: 'آموزش تنبک — صفحه ۳۰',
+    subtitle: 'Page 30 (IMG_0336.jpeg) • 2/4 Chap, Tom & Riz Patterns',
+    timeSignature: { numerator: 2, denominator: 4 },
+    tempo: 72,
+    tempoBeat: 'quarter',
+    sourceImage: '/api/book-photos/IMG_0336.jpeg',
+    createdAt: now - 8000,
+    updatedAt: now - 8000,
+    measures: [
+      // Line 1 (IMG_0336.jpeg)
+      m([
+        n('chap', 'eighth'),
+        n('tom', 'sixteenth'),
+        n('tom', 'sixteenth'),
+        n('chap', 'eighth'),
+        n('tom', 'sixteenth'),
+        n('tom', 'sixteenth'),
+      ]),
+      m([
+        n('chap', 'eighth'),
+        n('tom', 'sixteenth'),
+        n('tom', 'sixteenth'),
+        n('chap', 'eighth'),
+        n('tom', 'eighth'),
+      ]),
+      m([
+        n('tom', 'sixteenth', { graceNotes: PELANG_PAIR }),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('tom', 'eighth'),
+        n('chap', 'eighth'),
+      ]),
+      // Line 2
+      repeatM(),
+      m([
+        n('tom', 'sixteenth', { graceNotes: PELANG_PAIR }),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('tom', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+      ]),
+      m([
+        n('tom', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('chap', 'sixteenth'),
+        n('tom', 'eighth'),
+        n('chap', 'eighth'),
+      ]),
+      // Line 7 (with Riz!)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('riz', 'eighth', { tremolo: true }),
+        n('tom', 'eighth'),
+        n('chap', 'eighth'),
+      ]),
+      repeatM(),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('riz', 'eighth', { tremolo: true }),
+        n('tom', 'eighth'),
+        n('riz', 'eighth', { tremolo: true }),
+      ]),
+    ],
+  },
+  {
     id: 'book-page-39',
     title: 'دوره متوسطه — صفحه ۳۹',
     subtitle: 'Page 39 (IMG_0338.jpeg) • 2/4 32nd-Note & Riz Drills',
@@ -123,10 +275,9 @@ export const SAMPLE_PAGES: TonbakPage[] = [
     tempo: 66,
     tempoBeat: 'quarter',
     sourceImage: '/api/book-photos/IMG_0338.jpeg',
-    createdAt: now - 2000,
-    updatedAt: now - 2000,
+    createdAt: now - 7000,
+    updatedAt: now - 7000,
     measures: [
-      // Line 1 (IMG_0338.jpeg)
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('bak_l', 'sixteenth'),
@@ -148,7 +299,6 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_l', 'sixteenth'),
         n('bak_r', 'eighth'),
       ]),
-      // Line 2
       m([
         n('bak_r', 'eighth', { graceNotes: PELANG_PAIR }),
         n('bak_l', 'sixteenth'),
@@ -170,14 +320,13 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_l', 'sixteenth'),
         n('tom', 'eighth'),
       ]),
-      // Line 3 (with Riz tremolo!)
       m([
         n('tom', 'sixteenth', { graceNotes: PELANG_PAIR }),
         n('bak_l', 'sixteenth'),
-        n('riz', 'eighth', { tremolo: true, graceNotes: [{ stroke: 'eshareh' }] }),
+        n('riz', 'eighth', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('tom', 'sixteenth'),
         n('bak_l', 'sixteenth'),
-        n('riz', 'eighth', { tremolo: true, graceNotes: [{ stroke: 'eshareh' }] }),
+        n('riz', 'eighth', { tremolo: true, graceNotes: ESHAREH_GRACE }),
       ]),
       m([
         n('tom', 'thirtysecond'),
@@ -190,8 +339,168 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_l', 'thirtysecond'),
         n('tom', 'sixteenth'),
         n('bak_l', 'sixteenth'),
-        n('riz', 'eighth', { tremolo: true, graceNotes: [{ stroke: 'eshareh' }] }),
+        n('riz', 'eighth', { tremolo: true, graceNotes: ESHAREH_GRACE }),
       ]),
+    ],
+  },
+  {
+    id: 'book-page-44',
+    title: 'آموزش تنبک — صفحه ۴۴',
+    subtitle: 'Page 44 (IMG_0339.jpeg) • 2/4 Continuous 32nd-Note Speed Study',
+    timeSignature: { numerator: 2, denominator: 4 },
+    tempo: 62,
+    tempoBeat: 'quarter',
+    sourceImage: '/api/book-photos/IMG_0339.jpeg',
+    createdAt: now - 6000,
+    updatedAt: now - 6000,
+    measures: [
+      // Line 1 (IMG_0339.jpeg)
+      m([
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      m([
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      // Line 2
+      m([
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      m([
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+    ],
+  },
+  {
+    id: 'book-page-46',
+    title: 'آموزش تنبک — صفحه ۴۶',
+    subtitle: 'Page 46 (IMG_0340.jpeg) • 2/4 32nd-Note Runs & Riz Rolls',
+    timeSignature: { numerator: 2, denominator: 4 },
+    tempo: 64,
+    tempoBeat: 'quarter',
+    sourceImage: '/api/book-photos/IMG_0340.jpeg',
+    createdAt: now - 5000,
+    updatedAt: now - 5000,
+    measures: [
+      // Line 1 (IMG_0340.jpeg)
+      m([
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      m([
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      // Line 3 (32nd runs + Riz + % repeat)
+      m([
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('bak_r', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('tom', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+        n('chap', 'thirtysecond'),
+        n('bak_l', 'thirtysecond'),
+      ]),
+      m([
+        n('riz', 'half', { tremolo: true, graceNotes: [{ stroke: 'tom' }] }),
+      ]),
+      repeatM(),
     ],
   },
   {
@@ -202,10 +511,9 @@ export const SAMPLE_PAGES: TonbakPage[] = [
     tempo: 104,
     tempoBeat: 'dotted-quarter',
     sourceImage: '/api/book-photos/IMG_0343.jpeg',
-    createdAt: now - 1000,
-    updatedAt: now - 1000,
+    createdAt: now - 4000,
+    updatedAt: now - 4000,
     measures: [
-      // Line 1 (IMG_0343.jpeg)
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('bak_l', 'eighth', { finger: '2' }),
@@ -234,7 +542,6 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('pelang_r', 'sixteenth'),
         n('pelang_l', 'sixteenth'),
       ]),
-      // Line 2
       repeatM(),
       m([
         n('bak_r', 'sixteenth'),
@@ -264,23 +571,36 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('pelang_r', 'sixteenth'),
         n('pelang_l', 'sixteenth'),
       ]),
-      // Line 3
+    ],
+  },
+  {
+    id: 'book-page-61',
+    title: 'دوره متوسطه — صفحه ۶۱',
+    subtitle: 'Page 61 (IMG_0347.jpeg) • 6/8 Glissando Riz & 16th-Note Finale',
+    timeSignature: { numerator: 6, denominator: 8 },
+    tempo: 100,
+    tempoBeat: 'dotted-quarter',
+    sourceImage: '/api/book-photos/IMG_0347.jpeg',
+    createdAt: now - 3000,
+    updatedAt: now - 3000,
+    measures: [
+      // Line 1 (IMG_0347.jpeg)
       m([
-        n('bak_r', 'eighth'),
-        n('bak_l', 'eighth', { finger: '2' }),
-        n('tom', 'eighth'),
-        n('bak_r', 'eighth'),
-        n('tom', 'quarter'),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('bak_r', 'sixteenth'),
+        n('pelang_l', 'sixteenth'),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('bak_r', 'sixteenth'),
+        n('pelang_l', 'sixteenth'),
       ]),
       m([
-        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
-        n('bak_l', 'eighth', { finger: '2' }),
-        n('tom', 'eighth'),
-        n('bak_r', 'eighth'),
-        n('tom', 'quarter'),
-      ]),
-      m([
-        n('tom', 'sixteenth', { graceNotes: PELANG_PAIR }),
+        n('tom', 'sixteenth'),
         n('bak_l', 'sixteenth', { finger: '2' }),
         n('tom', 'sixteenth'),
         n('bak_l', 'sixteenth', { finger: '2' }),
@@ -292,6 +612,136 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('bak_l', 'sixteenth', { finger: '2' }),
         n('pelang_r', 'sixteenth'),
         n('pelang_l', 'sixteenth'),
+      ]),
+      // Line 2 (with Glissando Riz!)
+      m([
+        n('tom', 'eighth'),
+        n('chap', 'eighth'),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('chap', 'eighth'),
+        n('riz', 'quarter', { tremolo: true, glissando: true }),
+      ]),
+      m([
+        n('chap', 'eighth'),
+        n('chap', 'eighth'),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('chap', 'eighth'),
+        n('riz', 'quarter', { tremolo: true, glissando: true }),
+      ]),
+      m([
+        n('chap', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('chap', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('chap', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('tom', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('pelang_r', 'sixteenth'),
+        n('pelang_l', 'sixteenth'),
+      ]),
+      repeatM(),
+    ],
+  },
+  {
+    id: 'book-page-112',
+    title: 'آموزش تنبک — صفحه ۱۱۲',
+    subtitle: 'Page 112 (IMG_0353.jpeg) • 6/4 Concert Etude (Part 1)',
+    timeSignature: { numerator: 6, denominator: 4 },
+    tempo: 96,
+    tempoBeat: 'quarter',
+    sourceImage: '/api/book-photos/IMG_0353.jpeg',
+    createdAt: now - 2000,
+    updatedAt: now - 2000,
+    measures: [
+      // Section 2 (6/4 ♩ = 96 on IMG_0353.jpeg)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('rest', 'eighth'),
+        n('rest', 'half'),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('rest', 'eighth'),
+        n('rest', 'quarter'),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('rest', 'eighth'),
+        n('rest', 'half'),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('rest', 'eighth'),
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('rest', 'eighth'),
+        n('rest', 'quarter'),
+      ]),
+    ],
+  },
+  {
+    id: 'book-page-113',
+    title: 'دوره متوسطه — صفحه ۱۱۳',
+    subtitle: 'Page 113 (IMG_0352.jpeg) • 6/4 Concert Etude (Part 2, Finger 2/3/=)',
+    timeSignature: { numerator: 6, denominator: 4 },
+    tempo: 96,
+    tempoBeat: 'quarter',
+    sourceImage: '/api/book-photos/IMG_0352.jpeg',
+    createdAt: now - 1000,
+    updatedAt: now - 1000,
+    measures: [
+      // Line 1 (IMG_0352.jpeg)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('bak_l', 'eighth', { finger: '2' }),
+      ]),
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'eighth'),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('rest', 'eighth'),
+        n('rest', 'quarter'),
+      ]),
+      // Line 3 (with finger 2 & 3 16th-note runs!)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('bak_l', 'eighth', { finger: '3' }),
+        n('rest', 'half'),
+      ]),
+      // Line 6 (with finger 2 & = double-bar Bak!)
+      m([
+        n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
+        n('bak_l', 'eighth', { finger: '2' }),
+        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('bak_r', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '2' }),
+        n('bak_r', 'sixteenth'),
+        n('bak_l', 'sixteenth', { finger: '=' }),
+        n('rest', 'half'),
       ]),
     ],
   },

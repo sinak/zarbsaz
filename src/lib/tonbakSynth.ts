@@ -64,29 +64,32 @@ export function buildPlaybackTimeline(
 
 type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
 
-const SAMPLE_URLS: Record<SampleKey, string> = {
-  tom: '/samples/tom.wav',
-  bak_r: '/samples/bak_r.wav',
-  bak_l: '/samples/bak_l.wav',
-  pelang_r: '/samples/pelang_r.wav',
-  pelang_l: '/samples/pelang_l.wav',
-  chap: '/samples/chap.wav',
-  eshareh: '/samples/eshareh.wav',
+/**
+ * Round-robin real Persian Tonbak samples extracted from a live studio recording
+ * ("Tombak, Alireza.mp3" by sonsbcnintercultural, Freesound #256123, CC BY 3.0).
+ */
+const ROUND_ROBIN_URLS: Record<SampleKey, string[]> = {
+  tom: ['/samples/tom_1.wav', '/samples/tom_2.wav', '/samples/tom_3.wav'],
+  bak_r: ['/samples/bak_r_1.wav', '/samples/bak_r_2.wav', '/samples/bak_r_3.wav'],
+  bak_l: ['/samples/bak_l_1.wav', '/samples/bak_l_2.wav', '/samples/bak_l_3.wav'],
+  pelang_r: ['/samples/pelang_r_1.wav', '/samples/pelang_r_2.wav'],
+  pelang_l: ['/samples/pelang_l_1.wav', '/samples/pelang_l_2.wav'],
+  chap: ['/samples/chap_1.wav', '/samples/chap_2.wav'],
+  eshareh: ['/samples/eshareh_1.wav', '/samples/eshareh_2.wav'],
 };
 
 /**
- * Realistic Sample-Based Persian Tonbak Audio Engine.
- * Plays real recorded acoustic goblet-drum WAV samples sculpted for Persian Tonbak
- * (Tom, Bak R, Bak L, Pelang R/L, Chap, Eshareh) with velocity-linked tone filtering,
- * anti-machine-gun micro-pitch/timing humanization, warm wooden room reverb, and
- * automatic synthesis fallback if samples are still loading.
+ * Real Round-Robin Sample-Based Persian Tonbak Engine.
+ * Cycles through multiple real recorded hits per stroke so rapid 16th/32nd-note runs
+ * and Riz rolls sound like a live wooden Persian tonbak with natural goatskin resonance.
  */
 export class TonbakSynth {
   private ctx: AudioContext | null = null;
   private masterBus: GainNode | null = null;
-  private buffers = new Map<SampleKey, AudioBuffer>();
+  private buffers = new Map<SampleKey, AudioBuffer[]>();
+  private rrCursor = new Map<SampleKey, number>();
   private loadingPromise: Promise<void> | null = null;
-  private volume = 0.88;
+  private volume = 0.9;
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -98,22 +101,21 @@ export class TonbakSynth {
       this.masterBus = this.ctx.createGain();
       this.masterBus.gain.value = this.volume;
 
-      // Gentle master dynamics compressor for natural punch on rapid rolls & Toms
+      // Subtle warm wooden-room early reflection + clean master bus limiter
       const comp = this.ctx.createDynamicsCompressor();
-      comp.threshold.value = -9;
+      comp.threshold.value = -8;
       comp.knee.value = 10;
-      comp.ratio.value = 2.8;
+      comp.ratio.value = 2.6;
       comp.attack.value = 0.002;
-      comp.release.value = 0.12;
+      comp.release.value = 0.11;
 
-      // Subtle natural wooden room ambience
       const dryGain = this.ctx.createGain();
-      dryGain.gain.value = 0.9;
+      dryGain.gain.value = 0.93;
       const wetGain = this.ctx.createGain();
-      wetGain.gain.value = 0.14;
+      wetGain.gain.value = 0.1;
 
       const reverb = this.ctx.createConvolver();
-      reverb.buffer = this.createRoomImpulse(this.ctx, 0.34, 3.8);
+      reverb.buffer = this.createRoomImpulse(this.ctx, 0.28, 4.2);
 
       this.masterBus.connect(comp);
       comp.connect(dryGain).connect(this.ctx.destination);
@@ -127,7 +129,7 @@ export class TonbakSynth {
     return this.ctx;
   }
 
-  /** Preload and decode all real acoustic tonbak WAV samples into memory. */
+  /** Preload and decode all 17 real Persian Tonbak round-robin WAV samples. */
   public preloadSamples(): Promise<void> {
     if (this.loadingPromise) return this.loadingPromise;
     if (typeof window === 'undefined' || typeof fetch === 'undefined') {
@@ -135,16 +137,24 @@ export class TonbakSynth {
     }
 
     const ctx = this.ensureContext();
+    const entries = Object.entries(ROUND_ROBIN_URLS) as Array<[SampleKey, string[]]>;
+
     this.loadingPromise = Promise.all(
-      (Object.entries(SAMPLE_URLS) as Array<[SampleKey, string]>).map(async ([key, url]) => {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) return;
-          const arr = await res.arrayBuffer();
-          const decoded = await ctx.decodeAudioData(arr);
-          this.buffers.set(key, decoded);
-        } catch {
-          // fallback synth will handle if offline/unavailable
+      entries.map(async ([key, urls]) => {
+        const decodedList: AudioBuffer[] = [];
+        for (const url of urls) {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const arr = await res.arrayBuffer();
+            const decoded = await ctx.decodeAudioData(arr);
+            decodedList.push(decoded);
+          } catch {
+            // ignore individual fetch failure
+          }
+        }
+        if (decodedList.length > 0) {
+          this.buffers.set(key, decodedList);
         }
       })
     ).then(() => undefined);
@@ -170,56 +180,53 @@ export class TonbakSynth {
       const data = impulse.getChannelData(ch);
       for (let i = 0; i < length; i += 1) {
         const env = Math.pow(1 - i / length, decay);
-        const raw = (Math.random() * 2 - 1) * env * 0.32;
-        data[i] = i > 0 ? data[i - 1] * 0.4 + raw * 0.6 : raw;
+        const raw = (Math.random() * 2 - 1) * env * 0.28;
+        data[i] = i > 0 ? data[i - 1] * 0.45 + raw * 0.55 : raw;
       }
     }
     return impulse;
   }
 
-  /** Play a crisp wooden metronome tick. */
+  /** Play a subtle wooden metronome tick. */
   public playMetronomeClick(time: number, accented = false) {
     const ctx = this.ensureContext();
     if (!this.masterBus) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(accented ? 1420 : 980, time);
-    osc.frequency.exponentialRampToValueAtTime(accented ? 1120 : 780, time + 0.015);
-    gain.gain.setValueAtTime(accented ? 0.14 : 0.08, time);
-    gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.022);
+    osc.frequency.setValueAtTime(accented ? 1380 : 960, time);
+    osc.frequency.exponentialRampToValueAtTime(accented ? 1080 : 760, time + 0.014);
+    gain.gain.setValueAtTime(accented ? 0.13 : 0.075, time);
+    gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.02);
     osc.connect(gain).connect(this.masterBus);
     osc.start(time);
-    osc.stop(time + 0.028);
+    osc.stop(time + 0.025);
   }
 
-  /** Play a decoded real acoustic sample with humanization and velocity-linked tone filter. */
-  private playSample(
+  /** Pick the next round-robin recording for a stroke and play it with natural micro-dynamics. */
+  private playRoundRobinSample(
     ctx: AudioContext,
     key: SampleKey,
     time: number,
-    options: { gain: number; rate?: number; brightnessHz?: number }
+    options: { gain: number; rate?: number }
   ): boolean {
-    const buf = this.buffers.get(key);
-    if (!buf || !this.masterBus) return false;
+    const list = this.buffers.get(key);
+    if (!list || list.length === 0 || !this.masterBus) return false;
+
+    const idx = this.rrCursor.get(key) ?? 0;
+    const buf = list[idx % list.length];
+    this.rrCursor.set(key, (idx + 1) % list.length);
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    // Subtle organic micro-pitch variation (±1.8%) prevents robotic machine-gun repetition
-    const humanRate = (options.rate ?? 1) * (1 + (Math.random() - 0.5) * 0.036);
-    src.playbackRate.setValueAtTime(humanRate, time);
-
-    // Velocity-sensitive tone filter: softer hits sound slightly warmer, accents brighter
-    const tone = ctx.createBiquadFilter();
-    tone.type = 'lowpass';
-    const baseBright = options.brightnessHz ?? 9500;
-    const velFactor = Math.min(1.15, Math.max(0.55, options.gain));
-    tone.frequency.setValueAtTime(baseBright * velFactor, time);
+    // Tiny ±1.2% organic tension variation on top of true round-robin recordings
+    const naturalRate = (options.rate ?? 1) * (1 + (Math.random() - 0.5) * 0.024);
+    src.playbackRate.setValueAtTime(naturalRate, time);
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(Math.max(0.02, options.gain), time);
 
-    src.connect(tone).connect(g).connect(this.masterBus);
+    src.connect(g).connect(this.masterBus);
     src.start(time);
     return true;
   }
@@ -239,77 +246,47 @@ export class TonbakSynth {
     const ctx = this.ensureContext();
     if (!this.masterBus) return;
 
-    const vel = Math.max(0.15, Math.min(1.25, options.velocity ?? 0.92));
-    const humanVel = vel * (0.94 + Math.random() * 0.12);
+    const vel = Math.max(0.15, Math.min(1.25, options.velocity ?? 0.94));
+    const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
+      // Real alternating right-left finger roll using real Bak R & Bak L round-robin hits
       const totalDur = Math.max(0.12, options.durationSec ?? 0.35);
-      const stepSec = 0.042;
+      const stepSec = 0.041;
       const count = Math.max(3, Math.floor(totalDur / stepSec));
       for (let i = 0; i < count; i += 1) {
-        const jitter = i === 0 ? 0 : (Math.random() - 0.5) * 0.004;
+        const jitter = i === 0 ? 0 : (Math.random() - 0.5) * 0.0035;
         const t = Math.max(ctx.currentTime + 0.002, time + i * stepSec + jitter);
-        const swell = 0.56 + 0.4 * Math.sin((i / Math.max(1, count - 1)) * Math.PI);
-        const sampleKey: SampleKey = i % 2 === 0 ? 'bak_r' : 'bak_l';
+        const swell = 0.52 + 0.44 * Math.sin((i / Math.max(1, count - 1)) * Math.PI);
+        const key: SampleKey = i % 2 === 0 ? 'bak_r' : 'bak_l';
         const glissRate = options.glissando ? 1 + (i / count) * 0.28 : 1;
-        const played = this.playSample(ctx, sampleKey, t, {
-          gain: humanVel * swell * 0.72,
+        this.playRoundRobinSample(ctx, key, t, {
+          gain: humanVel * swell * 0.78,
           rate: glissRate,
-          brightnessHz: 7800,
         });
-        if (!played) {
-          this.fallbackBeep(ctx, t, sampleKey === 'bak_r' ? 310 : 365, 0.04, humanVel * 0.4);
-        }
       }
       return;
     }
 
     const fingerRate =
-      stroke === 'bak_l' && (options.finger === '3' || options.finger === '=') ? 1.055 : 1.0;
+      stroke === 'bak_l' && (options.finger === '3' || options.finger === '=') ? 1.05 : 1.0;
 
-    const played = this.playSample(ctx, stroke, time, {
-      gain: stroke === 'eshareh' ? humanVel * 0.65 : humanVel,
+    this.playRoundRobinSample(ctx, stroke, time, {
+      gain: stroke === 'eshareh' ? humanVel * 0.72 : humanVel,
       rate: fingerRate,
-      brightnessHz: stroke === 'tom' ? 3800 : 10500,
     });
-
-    if (!played) {
-      // Minimal fallback only if sample buffer hasn't decoded yet
-      const freq = stroke === 'tom' ? 98 : stroke === 'bak_l' ? 375 : 325;
-      this.fallbackBeep(ctx, time, freq, stroke === 'tom' ? 0.24 : 0.06, humanVel * 0.5);
-    }
-  }
-
-  private fallbackBeep(
-    ctx: AudioContext,
-    time: number,
-    freq: number,
-    decay: number,
-    gainVal: number
-  ) {
-    if (!this.masterBus) return;
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq * 1.35, time);
-    osc.frequency.exponentialRampToValueAtTime(freq, time + 0.025);
-    g.gain.setValueAtTime(gainVal, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + decay);
-    osc.connect(g).connect(this.masterBus);
-    osc.start(time);
-    osc.stop(time + decay + 0.02);
   }
 
   /** Trigger a full TonbakNote including any preceding grace notes. */
   public triggerNote(note: TonbakNote, time: number, durationSec: number) {
     const ctx = this.ensureContext();
     if (note.graceNotes && note.graceNotes.length > 0) {
-      const graceSpacing = 0.034;
+      const graceSpacing = 0.033;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);
         this.triggerStroke(g.stroke, gt, {
-          velocity: 0.68,
+          velocity: 0.66,
           finger: g.finger,
         });
       });
@@ -317,7 +294,7 @@ export class TonbakSynth {
 
     const effectiveStroke: StrokeType = note.tremolo ? 'riz' : note.stroke;
     this.triggerStroke(effectiveStroke, time, {
-      velocity: note.accent ? 1.12 : 0.94,
+      velocity: note.accent ? 1.12 : 0.95,
       finger: note.finger,
       durationSec,
       glissando: note.glissando,
@@ -365,7 +342,6 @@ export class TonbakPlayer {
 
   public async play(page: TonbakPage, startMeasure = 0, endMeasure = page.measures.length - 1) {
     this.stop(false);
-    // Ensure real acoustic samples are decoded before scheduling the first beat
     await this.synth.preloadSamples();
 
     const { events, totalDurationSec, quarterSec } = buildPlaybackTimeline(
