@@ -64,32 +64,73 @@ export function buildPlaybackTimeline(
 
 type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
 
-/**
- * Round-robin real Persian Tonbak samples extracted from a live studio recording
- * ("Tombak, Alireza.mp3" by sonsbcnintercultural, Freesound #256123, CC BY 3.0).
- */
-const ROUND_ROBIN_URLS: Record<SampleKey, string[]> = {
-  tom: ['/samples/tom_1.wav', '/samples/tom_2.wav', '/samples/tom_3.wav'],
-  bak_r: ['/samples/bak_r_1.wav', '/samples/bak_r_2.wav', '/samples/bak_r_3.wav'],
-  bak_l: ['/samples/bak_l_1.wav', '/samples/bak_l_2.wav', '/samples/bak_l_3.wav'],
-  pelang_r: ['/samples/pelang_r_1.wav', '/samples/pelang_r_2.wav'],
-  pelang_l: ['/samples/pelang_l_1.wav', '/samples/pelang_l_2.wav'],
-  chap: ['/samples/chap_1.wav', '/samples/chap_2.wav'],
-  eshareh: ['/samples/eshareh_1.wav', '/samples/eshareh_2.wav'],
-};
+export type TonbakKitId = 'cohesive' | 'warm' | 'crisp' | 'original';
+
+export interface TonbakKitInfo {
+  id: TonbakKitId;
+  label: string;
+  description: string;
+}
+
+export const TONBAK_KITS: TonbakKitInfo[] = [
+  {
+    id: 'cohesive',
+    label: 'Cohesive Studio',
+    description: 'All strokes cut from one continuous 9s phrase (matched mic & skin tension)',
+  },
+  {
+    id: 'warm',
+    label: 'Warm Walnut',
+    description: 'Deeper, woodier voicing with fuller Tom resonance',
+  },
+  {
+    id: 'crisp',
+    label: 'Crisp Concert',
+    description: 'Tighter dry envelopes & crisp rim articulation for fast passages',
+  },
+  {
+    id: 'original',
+    label: 'Original Cut',
+    description: 'First un-matched cut for A/B comparison',
+  },
+];
+
+function getKitUrls(kit: TonbakKitId): Record<SampleKey, string[]> {
+  const prefix = kit === 'original' ? '/samples' : `/samples/${kit}`;
+  return {
+    tom: [`${prefix}/tom_1.wav`, `${prefix}/tom_2.wav`, `${prefix}/tom_3.wav`],
+    bak_r: [`${prefix}/bak_r_1.wav`, `${prefix}/bak_r_2.wav`, `${prefix}/bak_r_3.wav`],
+    bak_l: [`${prefix}/bak_l_1.wav`, `${prefix}/bak_l_2.wav`, `${prefix}/bak_l_3.wav`],
+    pelang_r: [`${prefix}/pelang_r_1.wav`, `${prefix}/pelang_r_2.wav`],
+    pelang_l: [`${prefix}/pelang_l_1.wav`, `${prefix}/pelang_l_2.wav`],
+    chap: [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
+    eshareh: [`${prefix}/eshareh_1.wav`, `${prefix}/eshareh_2.wav`],
+  };
+}
 
 /**
  * Real Round-Robin Sample-Based Persian Tonbak Engine.
  * Cycles through multiple real recorded hits per stroke so rapid 16th/32nd-note runs
  * and Riz rolls sound like a live wooden Persian tonbak with natural goatskin resonance.
+ * Source recording: "Tombak, Alireza.mp3" by sonsbcnintercultural (Freesound #256123, CC BY 3.0).
  */
 export class TonbakSynth {
   private ctx: AudioContext | null = null;
   private masterBus: GainNode | null = null;
-  private buffers = new Map<SampleKey, AudioBuffer[]>();
+  private kitCache = new Map<TonbakKitId, Map<SampleKey, AudioBuffer[]>>();
+  private loadingPromises = new Map<TonbakKitId, Promise<void>>();
+  private activeKit: TonbakKitId = 'cohesive';
   private rrCursor = new Map<SampleKey, number>();
-  private loadingPromise: Promise<void> | null = null;
   private volume = 0.9;
+
+  public getKit(): TonbakKitId {
+    return this.activeKit;
+  }
+
+  public setKit(kit: TonbakKitId): Promise<void> {
+    this.activeKit = kit;
+    return this.preloadSamples(kit);
+  }
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -129,17 +170,19 @@ export class TonbakSynth {
     return this.ctx;
   }
 
-  /** Preload and decode all 17 real Persian Tonbak round-robin WAV samples. */
-  public preloadSamples(): Promise<void> {
-    if (this.loadingPromise) return this.loadingPromise;
+  /** Preload and decode all 17 real Persian Tonbak round-robin WAV samples for a kit. */
+  public preloadSamples(kit: TonbakKitId = this.activeKit): Promise<void> {
+    const existing = this.loadingPromises.get(kit);
+    if (existing) return existing;
     if (typeof window === 'undefined' || typeof fetch === 'undefined') {
       return Promise.resolve();
     }
 
     const ctx = this.ensureContext();
-    const entries = Object.entries(ROUND_ROBIN_URLS) as Array<[SampleKey, string[]]>;
+    const kitBuffers = new Map<SampleKey, AudioBuffer[]>();
+    const entries = Object.entries(getKitUrls(kit)) as Array<[SampleKey, string[]]>;
 
-    this.loadingPromise = Promise.all(
+    const promise = Promise.all(
       entries.map(async ([key, urls]) => {
         const decodedList: AudioBuffer[] = [];
         for (const url of urls) {
@@ -154,12 +197,15 @@ export class TonbakSynth {
           }
         }
         if (decodedList.length > 0) {
-          this.buffers.set(key, decodedList);
+          kitBuffers.set(key, decodedList);
         }
       })
-    ).then(() => undefined);
+    ).then(() => {
+      this.kitCache.set(kit, kitBuffers);
+    });
 
-    return this.loadingPromise;
+    this.loadingPromises.set(kit, promise);
+    return promise;
   }
 
   public setVolume(v: number) {
@@ -210,7 +256,8 @@ export class TonbakSynth {
     time: number,
     options: { gain: number; rate?: number }
   ): boolean {
-    const list = this.buffers.get(key);
+    const kitMap = this.kitCache.get(this.activeKit);
+    const list = kitMap?.get(key);
     if (!list || list.length === 0 || !this.masterBus) return false;
 
     const idx = this.rrCursor.get(key) ?? 0;

@@ -46,7 +46,12 @@ import {
 } from './types/notation';
 import { SAMPLE_PAGES } from './data/samplePages';
 import { api } from './lib/api';
-import { sharedTonbakPlayer, sharedTonbakSynth } from './lib/tonbakSynth';
+import {
+  sharedTonbakPlayer,
+  sharedTonbakSynth,
+  TONBAK_KITS,
+  type TonbakKitId,
+} from './lib/tonbakSynth';
 import { ScoreView, type ScoreSelection } from './components/ScoreView';
 import { EditorToolbar } from './components/EditorToolbar';
 import { OcrModal, type BulkImportResult } from './components/OcrModal';
@@ -183,6 +188,7 @@ export function App() {
   const [loopPlayback, setLoopPlayback] = useState(false);
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [volume, setVolume] = useState(0.88);
+  const [soundKit, setSoundKit] = useState<TonbakKitId>('cohesive');
 
   // Modals, Drawer & Panels
   const [ocrOpen, setOcrOpen] = useState(false);
@@ -1170,6 +1176,38 @@ export function App() {
                 updateActivePage((p) => ({ ...p, tempo: bpm }), false);
               }}
             />
+          </div>
+
+          <div className="kit-picker">
+            <label htmlFor="kit-select" className="sr-only">
+              Tonbak sound kit
+            </label>
+            <select
+              id="kit-select"
+              className="kit-select"
+              aria-label="Tonbak sound kit"
+              title={TONBAK_KITS.find((k) => k.id === soundKit)?.description}
+              value={soundKit}
+              onChange={(e) => {
+                const next = e.target.value as TonbakKitId;
+                setSoundKit(next);
+                void sharedTonbakSynth.setKit(next).then(() => {
+                  // Play a quick Tom + Bak preview of the newly selected kit
+                  const now = sharedTonbakSynth.getCurrentTime() + 0.02;
+                  sharedTonbakSynth.triggerStroke('tom', now);
+                  sharedTonbakSynth.triggerStroke('bak_r', now + 0.16);
+                  sharedTonbakSynth.triggerStroke('bak_l', now + 0.3);
+                });
+                const info = TONBAK_KITS.find((k) => k.id === next);
+                announce(`Switched Tonbak kit to ${info?.label}: ${info?.description}`);
+              }}
+            >
+              {TONBAK_KITS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  Kit: {k.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="slider-control slider-vol hide-sm">

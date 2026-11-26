@@ -305,6 +305,35 @@ select:focus-visible {
   font-size: 0.78rem;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.kit-picker {
+  display: inline-flex;
+  align-items: center;
+}
+
+.kit-select {
+  min-block-size: max(34px, var(--target-size));
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid #544537;
+  background: #352b22;
+  color: #f3eadc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Native Range Sliders (modern-web-guidance `slider` pattern) */
 .slider-control {
   display: inline-flex;

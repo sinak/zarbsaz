@@ -57,18 +57,14 @@ function StrokeGlyph({
   return (
     <g transform={`translate(${x}, ${y}) scale(${scale})`} fill={color} stroke={color}>
       {stroke === 'tom' && (
-        // Persian question mark ؟ (Tom)
-        <text
-          x={0}
-          y={2}
-          textAnchor="middle"
-          fontSize="19"
-          fontWeight="700"
-          fontFamily="'Vazirmatn', serif"
-          stroke="none"
-        >
-          ؟
-        </text>
+        // Dotless curved hook (تُم) — authentic Bahman Rajabi Tom glyph with NO dot
+        <path
+          d="M 3.2 -11.2 C 1.8 -13.6 -3.8 -13.4 -4.4 -8.8 C -4.9 -4.8 -0.4 -3.6 -0.4 1.6"
+          fill="none"
+          strokeWidth="2.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       )}
 
       {stroke === 'bak_r' && (

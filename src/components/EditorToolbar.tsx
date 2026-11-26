@@ -177,7 +177,24 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 onClick={() => onSelectStroke(stroke)}
               >
                 <span className="tb-stroke-symbol" style={{ color: info.color }}>
-                  {stroke === 'tom' && '؟'}
+                  {stroke === 'tom' && (
+                    <svg
+                      width="13"
+                      height="16"
+                      viewBox="-7 -15 14 18"
+                      aria-hidden="true"
+                      style={{ display: 'block' }}
+                    >
+                      <path
+                        d="M 3.2 -11.2 C 1.8 -13.6 -3.8 -13.4 -4.4 -8.8 C -4.9 -4.8 -0.4 -3.6 -0.4 1.6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
                   {stroke === 'bak_r' && '^'}
                   {stroke === 'bak_l' && 'v̇'}
                   {stroke === 'pelang_r' && '◠^'}

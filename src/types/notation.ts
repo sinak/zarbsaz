@@ -119,7 +119,7 @@ export const STROKE_INFO: Record<StrokeType, StrokeInfo> = {
     label: 'Tom',
     persian: 'تُم',
     shortcut: 'T',
-    description: 'Deep center bass stroke (؟)',
+    description: 'Deep center bass stroke (dotless hook)',
     color: '#9c3b1e',
   },
   bak_r: {
