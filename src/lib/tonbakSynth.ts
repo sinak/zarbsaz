@@ -64,7 +64,7 @@ export function buildPlaybackTimeline(
 
 type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
 
-export type TonbakKitId = 'cohesive' | 'warm' | 'crisp' | 'original';
+export type TonbakKitId = 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
 
 export interface TonbakKitInfo {
   id: TonbakKitId;
@@ -73,6 +73,11 @@ export interface TonbakKitInfo {
 }
 
 export const TONBAK_KITS: TonbakKitInfo[] = [
+  {
+    id: 'teacher',
+    label: "Teacher's Tonbak",
+    description: 'Visually verified single-video cuts from IMG_1151.MOV (43 dB SNR, matched room & drum)',
+  },
   {
     id: 'cohesive',
     label: 'Cohesive Studio',
@@ -119,7 +124,7 @@ export class TonbakSynth {
   private masterBus: GainNode | null = null;
   private kitCache = new Map<TonbakKitId, Map<SampleKey, AudioBuffer[]>>();
   private loadingPromises = new Map<TonbakKitId, Promise<void>>();
-  private activeKit: TonbakKitId = 'cohesive';
+  private activeKit: TonbakKitId = 'teacher';
   private rrCursor = new Map<SampleKey, number>();
   private volume = 0.9;
 
@@ -256,7 +261,7 @@ export class TonbakSynth {
     time: number,
     options: { gain: number; rate?: number }
   ): boolean {
-    const kitMap = this.kitCache.get(this.activeKit);
+    const kitMap = this.kitCache.get(this.activeKit) || this.kitCache.get('cohesive');
     const list = kitMap?.get(key);
     if (!list || list.length === 0 || !this.masterBus) return false;
 
@@ -297,18 +302,23 @@ export class TonbakSynth {
     const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
-      // Real alternating right-left finger roll using real Bak R & Bak L round-robin hits
-      const totalDur = Math.max(0.12, options.durationSec ?? 0.35);
-      const stepSec = 0.041;
-      const count = Math.max(3, Math.floor(totalDur / stepSec));
+      // Riz dynamically fills 100% of the note's rhythmic space (durationSec)
+      // with a fluid alternating finger cascade right up to the next beat.
+      const totalDur = Math.max(0.1, options.durationSec ?? 0.35);
+      const targetStepSec = 0.038;
+      const count = Math.max(3, Math.round(totalDur / targetStepSec));
+      const exactStep = totalDur / count;
+      const cascade: SampleKey[] = ['bak_r', 'bak_l', 'eshareh', 'bak_l'];
       for (let i = 0; i < count; i += 1) {
-        const jitter = i === 0 ? 0 : (Math.random() - 0.5) * 0.0035;
-        const t = Math.max(ctx.currentTime + 0.002, time + i * stepSec + jitter);
-        const swell = 0.52 + 0.44 * Math.sin((i / Math.max(1, count - 1)) * Math.PI);
-        const key: SampleKey = i % 2 === 0 ? 'bak_r' : 'bak_l';
-        const glissRate = options.glissando ? 1 + (i / count) * 0.28 : 1;
+        const jitter = i === 0 || i === count - 1 ? 0 : (Math.random() - 0.5) * 0.0025;
+        const t = Math.max(ctx.currentTime + 0.002, time + i * exactStep + jitter);
+        const phase = i / Math.max(1, count - 1);
+        // Natural dynamic arch: gentle entry -> full body -> clean release into next beat
+        const swell = 0.62 + 0.34 * Math.sin(phase * Math.PI);
+        const key = cascade[i % cascade.length];
+        const glissRate = options.glissando ? 1 + phase * 0.28 : 1;
         this.playRoundRobinSample(ctx, key, t, {
-          gain: humanVel * swell * 0.78,
+          gain: humanVel * swell * (key === 'eshareh' ? 0.92 : 0.78),
           rate: glissRate,
         });
       }

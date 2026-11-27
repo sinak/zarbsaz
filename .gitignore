@@ -7,6 +7,12 @@ dist/
 .env.*
 tsconfig.tsbuildinfo
 
-# Keep local book page photos out of git
+# Keep local book page photos and teacher videos/samples out of git
 IMG_*.jpeg
 IMG_*.jpg
+teacher_videos/
+public/samples/teacher/
+*.mp4
+*.mov
+*.MOV
+*.m4v
