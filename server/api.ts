@@ -358,6 +358,48 @@ export function createApiMiddleware(workspaceRoot: string, store: ZarbSazStore) 
         return;
       }
 
+      // --- Teacher Kit Sample Picker Save ---
+      if (req.method === 'POST' && pathname === '/api/teacher-kit/save') {
+        const body = JSON.parse(await readBody(req)) as {
+          mapping?: Record<string, string[]>;
+        };
+        const mapping = body.mapping || {};
+        const candDir = path.join(workspaceRoot, 'public', 'samples', 'candidates');
+        const outDir = path.join(workspaceRoot, 'public', 'samples', 'teacher');
+        fs.mkdirSync(outDir, { recursive: true });
+
+        const slotCounts: Record<string, number> = {
+          tom: 3,
+          bak_r: 3,
+          bak_l: 3,
+          pelang_r: 2,
+          pelang_l: 2,
+          chap: 2,
+          eshareh: 2,
+          riz: 2,
+          gliss: 2,
+        };
+
+        const updated: string[] = [];
+        for (const [stroke, files] of Object.entries(mapping)) {
+          const maxSlots = slotCounts[stroke];
+          if (!maxSlots || !Array.isArray(files) || files.length === 0) continue;
+          const validFiles = files
+            .map((f) => path.basename(String(f)))
+            .filter((f) => /^[a-z0-9_.-]+\.wav$/i.test(f) && fs.existsSync(path.join(candDir, f)));
+          if (validFiles.length === 0) continue;
+
+          for (let i = 0; i < maxSlots; i += 1) {
+            const srcFile = validFiles[i % validFiles.length];
+            const dstFile = `${stroke}_${i + 1}.wav`;
+            fs.copyFileSync(path.join(candDir, srcFile), path.join(outDir, dstFile));
+          }
+          updated.push(stroke);
+        }
+
+        return sendJson(res, 200, { ok: true, updated });
+      }
+
       // --- OCR Status & Vision OCR ---
       if (req.method === 'GET' && pathname === '/api/ocr-status') {
         return sendJson(res, 200, {

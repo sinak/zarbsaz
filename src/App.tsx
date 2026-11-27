@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  Sliders,
 } from 'lucide-react';
 import {
   cloneMeasureWithNewIds,
@@ -60,6 +61,7 @@ import { OcrModal, type BulkImportResult } from './components/OcrModal';
 import { AuthModal } from './components/AuthModal';
 import { ShareModal, type ShareTarget } from './components/ShareModal';
 import { SharedView } from './components/SharedView';
+import { SamplePickerModal } from './components/SamplePickerModal';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v5';
 const STORAGE_PAGES_KEY = 'zarbsaz_pages_v5';
@@ -213,6 +215,7 @@ export function App() {
   // Modals, Drawer & Panels
   const [ocrOpen, setOcrOpen] = useState(false);
   const [ocrInitialCamera, setOcrInitialCamera] = useState(false);
+  const [samplerOpen, setSamplerOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [showSourcePhoto, setShowSourcePhoto] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1274,6 +1277,15 @@ export function App() {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn-secondary hide-xs"
+              title="Audition and choose your favorite teacher recordings for each stroke"
+              onClick={() => setSamplerOpen(true)}
+            >
+              <Sliders size={14} aria-hidden="true" />
+              <span>Pick Samples</span>
+            </button>
           </div>
 
           <div className="slider-control slider-vol hide-sm">
@@ -1885,6 +1897,16 @@ export function App() {
         defaultBookId={activePage.bookId ?? null}
         onClose={() => setOcrOpen(false)}
         onImportPages={(res) => void handleBulkImport(res)}
+      />
+
+      {/* Teacher's Tonbak Sample Picker Modal */}
+      <SamplePickerModal
+        open={samplerOpen}
+        onClose={() => setSamplerOpen(false)}
+        onSaved={(updated) => {
+          setSoundKit('teacher');
+          announce(`Updated Teacher's Tonbak kit (${updated.join(', ')})!`);
+        }}
       />
 
       {/* Sign In / Sign Up Modal */}

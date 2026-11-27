@@ -320,6 +320,129 @@ select:focus-visible {
 .kit-picker {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+}
+
+/* Interactive Sample Picker Modal */
+.sampler-stroke-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sampler-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sampler-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.sampler-tab-badge {
+  background: rgba(0, 0, 0, 0.16);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+}
+
+.sampler-pool-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.sampler-pool-bar .btn-mini[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.sampler-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  max-height: 48dvh;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.sampler-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.sampler-card.picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sampler-card.playing {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.sampler-play-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 2px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.sampler-card-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+}
+
+.sampler-card-info small {
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+}
+
+.sampler-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sampler-pick-btn.picked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .kit-select {

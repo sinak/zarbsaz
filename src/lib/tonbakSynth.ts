@@ -154,6 +154,14 @@ export class TonbakSynth {
     return this.preloadSamples(kit);
   }
 
+  /** Force-reload a kit's WAV files (e.g. right after saving custom picks in the Sample Picker). */
+  public reloadKit(kit: TonbakKitId = this.activeKit): Promise<void> {
+    this.kitCache.delete(kit);
+    this.loadingPromises.delete(kit);
+    this.activeKit = kit;
+    return this.preloadSamples(kit, Date.now());
+  }
+
   private ensureContext(): AudioContext {
     if (!this.ctx) {
       const AudioCtx =
@@ -192,10 +200,10 @@ export class TonbakSynth {
     return this.ctx;
   }
 
-  /** Preload and decode all 17 real Persian Tonbak round-robin WAV samples for a kit. */
-  public preloadSamples(kit: TonbakKitId = this.activeKit): Promise<void> {
+  /** Preload and decode all real Persian Tonbak round-robin WAV samples for a kit. */
+  public preloadSamples(kit: TonbakKitId = this.activeKit, cacheBust?: number): Promise<void> {
     const existing = this.loadingPromises.get(kit);
-    if (existing) return existing;
+    if (existing && !cacheBust) return existing;
     if (typeof window === 'undefined' || typeof fetch === 'undefined') {
       return Promise.resolve();
     }
@@ -203,13 +211,14 @@ export class TonbakSynth {
     const ctx = this.ensureContext();
     const kitBuffers = new Map<SampleKey, AudioBuffer[]>();
     const entries = Object.entries(getKitUrls(kit)) as Array<[SampleKey, string[]]>;
+    const qs = cacheBust ? `?v=${cacheBust}` : '';
 
     const promise = Promise.all(
       entries.map(async ([key, urls]) => {
         const decodedList: AudioBuffer[] = [];
         for (const url of urls) {
           try {
-            const res = await fetch(url);
+            const res = await fetch(`${url}${qs}`);
             if (!res.ok) continue;
             const arr = await res.arrayBuffer();
             const decoded = await ctx.decodeAudioData(arr);
