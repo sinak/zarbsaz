@@ -83,6 +83,8 @@ export interface TonbakPage {
   tempo: number;
   tempoBeat?: 'quarter' | 'dotted-quarter';
   measures: Measure[];
+  /** For scanned/imported book pages: exact number of measures on each printed staff line. */
+  barsPerLine?: number[];
   sourceImage?: string;
   shareToken?: string;
   isPublic?: boolean;
@@ -412,6 +414,12 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
     });
   }
 
+  const barsPerLine = Array.isArray(obj.barsPerLine)
+    ? obj.barsPerLine
+        .map((n) => (typeof n === 'number' ? Math.round(n) : 0))
+        .filter((n) => n >= 1 && n <= 12)
+    : undefined;
+
   const now = Date.now();
   return {
     id: createId('page'),
@@ -421,6 +429,7 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
     tempo,
     tempoBeat,
     measures,
+    barsPerLine: barsPerLine && barsPerLine.length > 0 ? barsPerLine : undefined,
     sourceImage,
     createdAt: now,
     updatedAt: now,

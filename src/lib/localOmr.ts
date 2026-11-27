@@ -57,9 +57,11 @@ export async function runLocalTonbakOmr(
   octx.drawImage(canvas, 0, 0);
 
   const measures: Measure[] = [];
+  const barsPerLine: number[] = [];
   let totalNotes = 0;
 
   for (let sIdx = 0; sIdx < staffYs.length; sIdx += 1) {
+    const startMeasureCount = measures.length;
     const sy = staffYs[sIdx];
     const bandTop = Math.max(0, Math.round(sy - staffSpacing * 0.72));
     const bandBottom = Math.min(h - 1, Math.round(sy + staffSpacing * 0.22));
@@ -136,6 +138,11 @@ export async function runLocalTonbakOmr(
         notes,
       });
     }
+
+    const barsInThisLine = measures.length - startMeasureCount;
+    if (barsInThisLine > 0) {
+      barsPerLine.push(barsInThisLine);
+    }
   }
 
   if (measures.length === 0) {
@@ -160,6 +167,7 @@ export async function runLocalTonbakOmr(
     tempo: 96,
     tempoBeat: 'dotted-quarter',
     measures,
+    barsPerLine: barsPerLine.length > 0 ? barsPerLine : undefined,
     sourceImage: imageDataUrl,
     createdAt: now,
     updatedAt: now,

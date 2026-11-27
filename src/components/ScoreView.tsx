@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DURATION_BEAM_COUNT,
   getNoteQuarterBeats,
@@ -263,9 +263,33 @@ function measureWeight(m: Measure): number {
   return Math.max(1.4, w);
 }
 
-/** Partition measures into balanced horizontal lines (systems). */
-function layoutSystems(measures: Measure[]): Array<{ measureIndices: number[]; weights: number[] }> {
+/** Partition measures into horizontal lines (systems).
+ * When `barsPerLine` is provided (scanned book pages on desktop), honor the exact
+ * bar counts from the original printed document; any extra appended bars wrap naturally.
+ */
+export function layoutSystems(
+  measures: Measure[],
+  barsPerLine?: number[]
+): Array<{ measureIndices: number[]; weights: number[] }> {
   const systems: Array<{ measureIndices: number[]; weights: number[] }> = [];
+  let cursor = 0;
+
+  if (barsPerLine && barsPerLine.length > 0) {
+    for (const count of barsPerLine) {
+      if (cursor >= measures.length) break;
+      const take = Math.max(1, Math.min(count, measures.length - cursor));
+      const indices: number[] = [];
+      const weights: number[] = [];
+      for (let k = 0; k < take; k += 1) {
+        const idx = cursor + k;
+        indices.push(idx);
+        weights.push(measureWeight(measures[idx]));
+      }
+      systems.push({ measureIndices: indices, weights });
+      cursor += take;
+    }
+  }
+
   let currentIndices: number[] = [];
   let currentWeights: number[] = [];
   let accWeight = 0;
@@ -273,7 +297,7 @@ function layoutSystems(measures: Measure[]): Array<{ measureIndices: number[]; w
   // Target total weight per system (~19 weight units fits ~3 standard measures or ~2 dense 16th measures)
   const MAX_SYSTEM_WEIGHT = 19.5;
 
-  for (let i = 0; i < measures.length; i += 1) {
+  for (let i = cursor; i < measures.length; i += 1) {
     const w = measureWeight(measures[i]);
     if (
       currentIndices.length > 0 &&
@@ -305,7 +329,26 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
   onQuickAddNote,
   svgRef,
 }) => {
-  const systems = useMemo(() => layoutSystems(page.measures), [page.measures]);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(min-width: 901px)').matches
+      : true
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(min-width: 901px)');
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const effectiveBarsPerLine = isDesktop ? page.barsPerLine : undefined;
+  const systems = useMemo(
+    () => layoutSystems(page.measures, effectiveBarsPerLine),
+    [page.measures, effectiveBarsPerLine]
+  );
   const headerHeight = 82;
   const totalHeight = headerHeight + systems.length * SYSTEM_HEIGHT + 44;
 

@@ -34,6 +34,7 @@ Return ONLY raw JSON (no markdown fences, no commentary) matching this exact str
   "timeSignature": { "numerator": 6, "denominator": 8 },
   "tempo": 96,
   "tempoBeat": "dotted-quarter" | "quarter",
+  "barsPerLine": [3, 2, 4],
   "measures": [
     {
       "isRepeatPrevious": false,

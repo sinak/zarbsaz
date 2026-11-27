@@ -60,9 +60,9 @@ import { AuthModal } from './components/AuthModal';
 import { ShareModal, type ShareTarget } from './components/ShareModal';
 import { SharedView } from './components/SharedView';
 
-const STORAGE_BOOKS_KEY = 'zarbsaz_books_v4';
-const STORAGE_PAGES_KEY = 'zarbsaz_pages_v4';
-const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v4';
+const STORAGE_BOOKS_KEY = 'zarbsaz_books_v5';
+const STORAGE_PAGES_KEY = 'zarbsaz_pages_v5';
+const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v5';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';
 

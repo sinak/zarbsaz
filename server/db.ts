@@ -53,6 +53,7 @@ export interface DbPiece {
   tempo: number;
   tempoBeat: 'quarter' | 'dotted-quarter';
   measures: unknown[];
+  barsPerLine?: number[];
   sourceImage?: string;
   shareToken: string;
   isPublic: boolean;
@@ -145,6 +146,7 @@ export class ZarbSazStore {
         tempo INTEGER NOT NULL DEFAULT 96,
         tempo_beat TEXT NOT NULL DEFAULT 'dotted-quarter',
         measures_json TEXT NOT NULL DEFAULT '[]',
+        bars_per_line_json TEXT,
         source_image TEXT,
         share_token TEXT NOT NULL UNIQUE,
         is_public INTEGER NOT NULL DEFAULT 0,
@@ -172,6 +174,13 @@ export class ZarbSazStore {
         created_at INTEGER NOT NULL
       );
     `);
+
+    // Safe migration for existing databases created before bars_per_line_json existed
+    try {
+      this.db.exec('ALTER TABLE pieces ADD COLUMN bars_per_line_json TEXT;');
+    } catch {
+      // column already exists
+    }
   }
 
   public close() {
@@ -292,6 +301,15 @@ export class ZarbSazStore {
     } catch {
       measures = [];
     }
+    let barsPerLine: number[] | undefined;
+    if (row.bars_per_line_json) {
+      try {
+        const parsed = JSON.parse(String(row.bars_per_line_json));
+        if (Array.isArray(parsed) && parsed.length > 0) barsPerLine = parsed;
+      } catch {
+        // ignore
+      }
+    }
     return {
       id: String(row.id),
       ownerId: String(row.owner_id),
@@ -307,6 +325,7 @@ export class ZarbSazStore {
       tempo: Number(row.tempo ?? 96),
       tempoBeat: row.tempo_beat === 'quarter' ? 'quarter' : 'dotted-quarter',
       measures,
+      barsPerLine,
       sourceImage: row.source_image ? String(row.source_image) : undefined,
       shareToken: String(row.share_token),
       isPublic: Boolean(row.is_public),
@@ -397,6 +416,7 @@ export class ZarbSazStore {
       tempo?: number;
       tempoBeat?: 'quarter' | 'dotted-quarter';
       measures?: unknown[];
+      barsPerLine?: number[];
       sourceImage?: string;
     }
   ): DbPiece {
@@ -424,8 +444,8 @@ export class ZarbSazStore {
         `INSERT INTO pieces (
           id, owner_id, book_id, sort_order, title, subtitle,
           time_sig_num, time_sig_den, tempo, tempo_beat,
-          measures_json, source_image, share_token, is_public, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          measures_json, bars_per_line_json, source_image, share_token, is_public, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
       )
       .run(
         id,
@@ -439,6 +459,7 @@ export class ZarbSazStore {
         input.tempo ?? 96,
         input.tempoBeat ?? 'dotted-quarter',
         JSON.stringify(input.measures ?? []),
+        input.barsPerLine ? JSON.stringify(input.barsPerLine) : null,
         input.sourceImage ?? null,
         shareToken,
         now,

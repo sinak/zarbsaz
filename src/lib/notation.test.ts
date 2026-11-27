@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeBeamGroups, computeBeamSegments } from './beaming';
 import { buildPlaybackTimeline, getQuarterNoteSeconds } from './tonbakSynth';
+import { layoutSystems } from '../components/ScoreView';
 import {
   cloneMeasureWithNewIds,
   normalizeOcrPage,
@@ -156,5 +157,20 @@ describe('OCR JSON normalization & copy-paste cloning', () => {
     // Mutating clone must not affect original
     cloned.notes[0].graceNotes![0].stroke = 'bak_l';
     expect(original.notes[0].graceNotes![0].stroke).toBe('pelang_r');
+  });
+
+  it('honors scanned barsPerLine on desktop and auto-wraps any appended overflow measures', () => {
+    const measures: Measure[] = Array.from({ length: 11 }, (_, i) => ({
+      id: `m${i}`,
+      notes: [mkNote(`n${i}`, 'tom', 'quarter')],
+    }));
+    // Original scanned page had [3, 2, 4] = 9 bars; 2 extra bars appended should flow to a 4th line
+    const systems = layoutSystems(measures, [3, 2, 4]);
+    expect(systems.map((s) => s.measureIndices)).toEqual([
+      [0, 1, 2],
+      [3, 4],
+      [5, 6, 7, 8],
+      [9, 10],
+    ]);
   });
 });

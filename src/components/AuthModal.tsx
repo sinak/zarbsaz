@@ -67,6 +67,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, onAuthentic
           tempo: p.tempo,
           tempoBeat: p.tempoBeat,
           measures: p.measures,
+          barsPerLine: p.barsPerLine,
           sourceImage: p.sourceImage,
           isStandalone: p.id === 'my-composition-1',
         }));
