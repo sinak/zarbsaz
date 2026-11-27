@@ -32,6 +32,7 @@ import {
   cloneMeasureWithNewIds,
   cloneNoteWithNewIds,
   createId,
+  getNoteQuarterBeats,
   normalizeOcrPage,
   STROKE_INFO,
   type ClipboardPayload,
@@ -51,6 +52,7 @@ import { api } from './lib/api';
 import {
   sharedTonbakPlayer,
   sharedTonbakSynth,
+  getQuarterNoteSeconds,
   TONBAK_KITS,
   type TonbakKitId,
 } from './lib/tonbakSynth';
@@ -434,7 +436,16 @@ export function App() {
       if (note) {
         setActiveStroke(note.stroke);
         setActiveDuration(note.duration);
-        sharedTonbakSynth.triggerNote(note, sharedTonbakSynth.getCurrentTime() + 0.01, 0.28);
+        const quarterSec = getQuarterNoteSeconds(activePage.tempo, activePage.tempoBeat);
+        const noteDurSec = Math.max(0.18, Math.min(1.8, getNoteQuarterBeats(note) * quarterSec));
+        // Reserve enough lookahead so preceding grace notes (S Tom, Dorrab ◠^◠v, or 4-note 1-2-3-=)
+        // play in full before the main note instead of clamping to `now`
+        const graceLeadSec = note.graceNotes && note.graceNotes.length > 0 ? 0.18 : 0.01;
+        sharedTonbakSynth.triggerNote(
+          note,
+          sharedTonbakSynth.getCurrentTime() + graceLeadSec,
+          noteDurSec
+        );
       }
     },
     [activePage, selection]

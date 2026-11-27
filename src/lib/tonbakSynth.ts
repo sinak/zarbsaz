@@ -382,16 +382,27 @@ export class TonbakSynth {
 
       // When using a kit with real recorded Riz rolls (e.g. My Tonbak) and no glissando sweep,
       // play the authentic recorded Riz trimmed cleanly to the exact note duration!
-      if (!options.glissando && totalDur <= 1.08) {
+      // For very long rolls (> 0.95s), smoothly overlap a second take so it never cuts out early.
+      if (!options.glissando) {
         const rizKey: SampleKey =
           rizStyle === 'edge' ? 'riz_edge' : rizStyle === 'pelang' ? 'riz_pelang' : 'riz_full';
+        const firstDur = Math.min(totalDur + 0.03, 0.95);
         if (
           this.playRoundRobinSample(ctx, rizKey, time, {
             gain: humanVel * 0.96,
             rate: 1.0,
-            maxDurationSec: totalDur + 0.03,
+            maxDurationSec: firstDur,
           })
         ) {
+          if (totalDur > 0.92) {
+            const overlapStart = time + 0.82;
+            const remainDur = Math.max(0.15, time + totalDur - overlapStart + 0.03);
+            this.playRoundRobinSample(ctx, rizKey, overlapStart, {
+              gain: humanVel * 0.92,
+              rate: 1.01,
+              maxDurationSec: Math.min(remainDur, 0.95),
+            });
+          }
           return;
         }
       }
@@ -464,9 +475,9 @@ export class TonbakSynth {
     // Soft Tom lead-in grace note before a Riz (S / تُم اشاره)
     if (stroke === 'eshareh') {
       this.playRoundRobinSample(ctx, 'tom', time, {
-        gain: humanVel * 0.68,
-        rate: 1.03,
-        maxDurationSec: 0.18,
+        gain: humanVel * 0.88,
+        rate: 1.0,
+        maxDurationSec: 0.36,
       });
       return;
     }
@@ -575,13 +586,18 @@ export class TonbakSynth {
       const isDorrabCascade = note.graceNotes.some(
         (g) => g.stroke === 'pelang_r' || g.stroke === 'pelang_l'
       );
+      const isTomLeadIn =
+        note.graceNotes.length === 1 &&
+        (note.graceNotes[0].stroke === 'eshareh' || note.graceNotes[0].stroke === 'tom');
       const graceSpacing = isDorrabCascade
         ? this.activeKit === 'my_tonbak' || this.activeKit === 'teacher'
           ? 0.078
           : 0.056
-        : note.graceNotes.length >= 4
-          ? 0.026
-          : 0.036;
+        : isTomLeadIn
+          ? 0.085
+          : note.graceNotes.length >= 4
+            ? 0.026
+            : 0.036;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);
