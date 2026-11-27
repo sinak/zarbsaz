@@ -1848,12 +1848,19 @@ select:focus-visible {
 
 /* Print Styles */
 @media print {
+  html,
+  body,
+  #root {
+    background: #fff !important;
+  }
   .top-bar,
   .sidebar,
   .page-meta-bar,
   .editor-toolbar-shell,
   .reference-photo-pane,
-  .mobile-camera-fab {
+  .mobile-camera-fab,
+  .sampler-mic-bar,
+  .score-selection-highlight {
     display: none !important;
   }
   .app-layout,
@@ -1867,10 +1874,21 @@ select:focus-visible {
     background: #fff !important;
     padding: 0 !important;
   }
-  .score-paper-wrap {
+  .score-paper-wrap,
+  .score-svg {
+    background: #fff !important;
     box-shadow: none !important;
     border: none !important;
     max-width: none !important;
+  }
+  .score-paper-bg,
+  .score-title-box,
+  .score-hollow-head,
+  .measure-badge rect {
+    fill: #fff !important;
+  }
+  .measure-badge text {
+    fill: #555 !important;
   }
 }
 

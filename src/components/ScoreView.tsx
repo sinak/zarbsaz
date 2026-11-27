@@ -452,8 +452,8 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
         aria-label={`Tonbak sheet music: ${page.title}`}
         onClick={() => onClearSelection?.()}
       >
-        {/* Warm archival paper background */}
-        <rect x={0} y={0} width={PAGE_WIDTH} height={totalHeight} fill="#fbf7ef" rx={6} />
+        {/* Warm archival paper background (prints pure white via @media print) */}
+        <rect className="score-paper-bg" x={0} y={0} width={PAGE_WIDTH} height={totalHeight} fill="#fbf7ef" rx={6} />
 
         {/* Header: Persian-style title box on top right + tempo marking on top left */}
         <g transform="translate(36, 22)">
@@ -476,6 +476,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
           {/* Title box matching Rajabi book header */}
           <g transform={`translate(${USABLE_WIDTH - 290}, 0)`}>
             <rect
+              className="score-title-box"
               x={0}
               y={0}
               width={290}
@@ -609,6 +610,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                     {/* Measure selection / playback / repeat-source highlight */}
                     {(selectedMeasure || isMeasurePlaying || isReplaySource) && (
                       <rect
+                        className="score-selection-highlight"
                         x={mStartX + 1}
                         y={sysTop + 20}
                         width={Math.max(10, mWidth - 2)}
@@ -918,6 +920,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                 <>
                                   {/* Notehead */}
                                   <ellipse
+                                    className={isHollow ? 'score-hollow-head' : undefined}
                                     cx={nx}
                                     cy={staffY}
                                     rx={5.1}
