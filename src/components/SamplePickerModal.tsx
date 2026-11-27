@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Check, X, Sliders, Volume2, Mic, Square } from 'lucide-react';
+import { Play, Check, X, Sliders, Volume2, Mic, Square, Upload } from 'lucide-react';
 import { sharedTonbakSynth } from '../lib/tonbakSynth';
 import { bytesToBase64, trimAndEncodeDrumWav } from '../lib/wavEncoder';
 
@@ -59,14 +59,19 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Built-in Mic Recorder state
+  // Built-in Raw-PCM Web Audio Mic Recorder state
   const [isRecording, setIsRecording] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
   const [recordedWavUrl, setRecordedWavUrl] = useState<string | null>(null);
   const [recordedWavBase64, setRecordedWavBase64] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
-  const mediaRecRef = useRef<MediaRecorder | null>(null);
-  const recChunksRef = useRef<Blob[]>([]);
   const recStreamRef = useRef<MediaStream | null>(null);
+  const recCtxRef = useRef<AudioContext | null>(null);
+  const recProcRef = useRef<ScriptProcessorNode | null>(null);
+  const recSamplesRef = useRef<Float32Array[]>([]);
+  const recSampleRateRef = useRef<number>(44100);
+  const hitDetectedAtRef = useRef<number | null>(null);
+  const uploadAudioRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -133,13 +138,48 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
 
   const totalPickedStrokes = Object.values(selected).filter((v) => v.length > 0).length;
 
-  const stopMicRecording = () => {
-    if (mediaRecRef.current && mediaRecRef.current.state !== 'inactive') {
-      mediaRecRef.current.stop();
+  const finalizePcmRecording = () => {
+    try {
+      recProcRef.current?.disconnect();
+      recProcRef.current = null;
+      recStreamRef.current?.getTracks().forEach((t) => t.stop());
+      recStreamRef.current = null;
+      if (recCtxRef.current) {
+        void recCtxRef.current.close();
+        recCtxRef.current = null;
+      }
+      setIsRecording(false);
+      setMicLevel(0);
+
+      const chunks = recSamplesRef.current;
+      const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+      if (totalLen === 0) {
+        setRecordError('No audio frames captured from microphone.');
+        return;
+      }
+      const merged = new Float32Array(totalLen);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+
+      const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
+      const { wavBytes } = trimAndEncodeDrumWav(merged, recSampleRateRef.current, maxDur);
+      const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+      const url = URL.createObjectURL(wavBlob);
+      setRecordedWavUrl(url);
+      setRecordedWavBase64(bytesToBase64(wavBytes));
+      const a = new Audio(url);
+      void a.play();
+    } catch (err) {
+      setRecordError(err instanceof Error ? err.message : String(err));
     }
-    recStreamRef.current?.getTracks().forEach((t) => t.stop());
-    recStreamRef.current = null;
-    setIsRecording(false);
+  };
+
+  const stopMicRecording = () => {
+    if (!isRecording) return;
+    finalizePcmRecording();
   };
 
   const startMicRecording = async () => {
@@ -151,6 +191,13 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       setRecordedWavBase64(null);
     }
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setRecordError(
+        'Microphone API is unavailable in this browser context (requires localhost or HTTPS). You can use "Upload Audio" instead.'
+      );
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -160,53 +207,90 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         },
       });
       recStreamRef.current = stream;
-      recChunksRef.current = [];
-      const recorder = new MediaRecorder(stream);
-      mediaRecRef.current = recorder;
 
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0) recChunksRef.current.push(ev.data);
-      };
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume();
+      recCtxRef.current = ctx;
+      recSampleRateRef.current = ctx.sampleRate;
+      recSamplesRef.current = [];
+      hitDetectedAtRef.current = null;
 
-      recorder.onstop = async () => {
-        try {
-          const blob = new Blob(recChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-          const arrBuf = await blob.arrayBuffer();
-          const AudioCtx =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-          const ctx = new AudioCtx();
-          const decoded = await ctx.decodeAudioData(arrBuf);
-          const channelData = decoded.getChannelData(0);
-          const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
-          const { wavBytes } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
-          void ctx.close();
+      const source = ctx.createMediaStreamSource(stream);
+      const processor = ctx.createScriptProcessor(2048, 1, 1);
+      recProcRef.current = processor;
 
-          const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
-          const url = URL.createObjectURL(wavBlob);
-          setRecordedWavUrl(url);
-          setRecordedWavBase64(bytesToBase64(wavBytes));
-          // Auto-audition the trimmed recording!
-          const a = new Audio(url);
-          void a.play();
-        } catch (err) {
-          setRecordError(err instanceof Error ? err.message : String(err));
+      // Silent monitor sink required by Chrome/Safari to keep ScriptProcessor running
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
+
+      processor.onaudioprocess = (ev) => {
+        const input = ev.inputBuffer.getChannelData(0);
+        const copy = new Float32Array(input.length);
+        copy.set(input);
+        recSamplesRef.current.push(copy);
+
+        let peak = 0;
+        for (let i = 0; i < copy.length; i += 1) {
+          const a = Math.abs(copy[i]);
+          if (a > peak) peak = a;
+        }
+        setMicLevel(Math.min(1, peak * 3.2));
+
+        // Smart auto-capture: once a real drum hit (> 0.06) is heard, capture 550ms of decay and auto-stop!
+        if (hitDetectedAtRef.current === null && peak > 0.06) {
+          hitDetectedAtRef.current = performance.now();
+        } else if (
+          hitDetectedAtRef.current !== null &&
+          performance.now() - hitDetectedAtRef.current > 550
+        ) {
+          hitDetectedAtRef.current = null;
+          finalizePcmRecording();
         }
       };
 
-      recorder.start();
+      source.connect(processor);
+      processor.connect(mute);
+      mute.connect(ctx.destination);
       setIsRecording(true);
-      // Auto-stop after 1.8s so you just click Record and hit your tonbak once!
-      window.setTimeout(() => {
-        if (mediaRecRef.current === recorder && recorder.state === 'recording') {
-          stopMicRecording();
-        }
-      }, 1800);
     } catch (err) {
       setRecordError(
-        err instanceof Error ? err.message : 'Microphone permission denied or unavailable.'
+        err instanceof Error
+          ? `Mic error: ${err.message}`
+          : 'Microphone permission denied or unavailable.'
       );
       setIsRecording(false);
+    }
+  };
+
+  const handleUploadAudioFile = async (file: File) => {
+    setRecordError(null);
+    setFeedback(null);
+    try {
+      const arrBuf = await file.arrayBuffer();
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const decoded = await ctx.decodeAudioData(arrBuf);
+      const channelData = decoded.getChannelData(0);
+      const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
+      const { wavBytes } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
+      void ctx.close();
+
+      if (recordedWavUrl) URL.revokeObjectURL(recordedWavUrl);
+      const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+      const url = URL.createObjectURL(wavBlob);
+      setRecordedWavUrl(url);
+      setRecordedWavBase64(bytesToBase64(wavBytes));
+      const a = new Audio(url);
+      void a.play();
+    } catch (err) {
+      setRecordError(
+        `Could not decode audio file: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   };
 
@@ -327,13 +411,40 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               {isRecording ? <Square size={14} aria-hidden="true" /> : <Mic size={14} aria-hidden="true" />}
               <span>
                 {isRecording
-                  ? `Listening… hit ${currentTab.label.split(' ')[0]} now!`
+                  ? `Listening… hit ${currentTab.label.split(' ')[0]} (or Stop)`
                   : `Record ${currentTab.label.split(' ')[0]} on Mic`}
               </span>
             </button>
-            <span className="sampler-mic-hint">
-              Auto-trims silence to exact strike onset &amp; normalizes
-            </span>
+
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => uploadAudioRef.current?.click()}
+            >
+              <Upload size={13} aria-hidden="true" />
+              <span>Upload Audio</span>
+            </button>
+            <input
+              ref={uploadAudioRef}
+              type="file"
+              accept="audio/*"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleUploadAudioFile(f);
+                e.target.value = '';
+              }}
+            />
+
+            {isRecording ? (
+              <div className="mic-meter" aria-label="Live microphone level">
+                <div className="mic-meter-fill" style={{ width: `${Math.round(micLevel * 100)}%` }} />
+              </div>
+            ) : (
+              <span className="sampler-mic-hint">
+                Waits for your strike, auto-trims &amp; normalizes
+              </span>
+            )}
           </div>
 
           {recordedWavUrl && (

@@ -499,6 +499,21 @@ select:focus-visible {
   border-color: #991b1b !important;
 }
 
+.mic-meter {
+  width: 96px;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5d8c5;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+}
+
+.mic-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #d97706, #dc2626);
+  transition: width 0.05s linear;
+}
+
 .kit-select {
   min-block-size: max(34px, var(--target-size));
   padding: 4px 10px;
