@@ -30,8 +30,8 @@ const STROKE_TABS: Array<{
   { key: 'tom', label: 'Tom (تُم)', defaultPool: 'tom', maxPicks: 3 },
   { key: 'bak_r', label: 'Bak R (^)', defaultPool: 'bak_r', maxPicks: 3 },
   { key: 'bak_l', label: 'Bak L (v̇)', defaultPool: 'bak_l', maxPicks: 3 },
-  { key: 'pelang_r', label: 'Pelang R', defaultPool: 'bak_l', maxPicks: 2 },
-  { key: 'pelang_l', label: 'Pelang L', defaultPool: 'bak_l', maxPicks: 2 },
+  { key: 'pelang_r', label: 'Pelang R (Dorrab 1)', defaultPool: 'bak_l', maxPicks: 2 },
+  { key: 'pelang_l', label: 'Pelang L (Dorrab 2)', defaultPool: 'bak_l', maxPicks: 2 },
   { key: 'chap', label: 'Chap (^̄)', defaultPool: 'bak_r', maxPicks: 2 },
   { key: 'eshareh', label: 'Eshareh (5)', defaultPool: 'bak_r', maxPicks: 2 },
 ];
@@ -326,6 +326,46 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               }}
             >
               <Play size={12} aria-hidden="true" /> Gliss Down (↘g)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerNote(
+                    {
+                      id: 'preview-dorrab-tom',
+                      stroke: 'tom',
+                      duration: 'quarter',
+                      graceNotes: [{ stroke: 'pelang_r' }, { stroke: 'pelang_l' }],
+                    },
+                    sharedTonbakSynth.getCurrentTime() + 0.1,
+                    0.35
+                  );
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Dorrab → Tom
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerNote(
+                    {
+                      id: 'preview-dorrab-bak',
+                      stroke: 'bak_r',
+                      duration: 'quarter',
+                      graceNotes: [{ stroke: 'pelang_r' }, { stroke: 'pelang_l' }],
+                    },
+                    sharedTonbakSynth.getCurrentTime() + 0.1,
+                    0.35
+                  );
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Dorrab → Bak R
             </button>
           </div>
         </div>
