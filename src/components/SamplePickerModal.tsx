@@ -34,8 +34,6 @@ const STROKE_TABS: Array<{
   { key: 'pelang_l', label: 'Pelang L', defaultPool: 'bak_l', maxPicks: 2 },
   { key: 'chap', label: 'Chap (^̄)', defaultPool: 'bak_r', maxPicks: 2 },
   { key: 'eshareh', label: 'Eshareh (5)', defaultPool: 'bak_r', maxPicks: 2 },
-  { key: 'riz', label: 'Riz Roll', defaultPool: 'riz', maxPicks: 2 },
-  { key: 'gliss', label: 'Glissando', defaultPool: 'gliss', maxPicks: 2 },
 ];
 
 interface SamplePickerModalProps {
@@ -168,7 +166,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               Teacher&apos;s Tonbak — Sample Picker
             </h2>
             <p className="ocr-dialog-sub">
-              Click any recording to audition it, select your favorite 1–{currentTab.maxPicks} clean hits for each stroke, then click Save.
+              Click any recording to audition it, select your favorite 1–{currentTab.maxPicks} clean hits for each stroke, then click Save. Riz &amp; Glissando rolls automatically build from your chosen Bak R, Bak L, and Eshareh hits to fill any note duration.
             </p>
           </div>
           <button

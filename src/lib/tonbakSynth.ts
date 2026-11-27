@@ -68,16 +68,7 @@ export function buildPlaybackTimeline(
   return { events, totalDurationSec: cursorSec, quarterSec };
 }
 
-type SampleKey =
-  | 'tom'
-  | 'bak_r'
-  | 'bak_l'
-  | 'pelang_r'
-  | 'pelang_l'
-  | 'chap'
-  | 'eshareh'
-  | 'riz'
-  | 'gliss';
+type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
 
 export type TonbakKitId = 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
 
@@ -125,8 +116,6 @@ function getKitUrls(kit: TonbakKitId): Record<SampleKey, string[]> {
     pelang_l: [`${prefix}/pelang_l_1.wav`, `${prefix}/pelang_l_2.wav`],
     chap: [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
     eshareh: [`${prefix}/eshareh_1.wav`, `${prefix}/eshareh_2.wav`],
-    riz: kit === 'teacher' ? [`${prefix}/riz_1.wav`, `${prefix}/riz_2.wav`] : [],
-    gliss: kit === 'teacher' ? [`${prefix}/gliss_1.wav`, `${prefix}/gliss_2.wav`] : [],
   };
 }
 
@@ -285,7 +274,7 @@ export class TonbakSynth {
     ctx: AudioContext,
     key: SampleKey,
     time: number,
-    options: { gain: number; rate?: number }
+    options: { gain: number; rate?: number; softenHz?: number; maxDurationSec?: number }
   ): boolean {
     const kitMap = this.kitCache.get(this.activeKit) || this.kitCache.get('cohesive');
     const list = kitMap?.get(key);
@@ -302,10 +291,27 @@ export class TonbakSynth {
     src.playbackRate.setValueAtTime(naturalRate, time);
 
     const g = ctx.createGain();
-    g.gain.setValueAtTime(Math.max(0.02, options.gain), time);
+    const peakGain = Math.max(0.02, options.gain);
+    g.gain.setValueAtTime(peakGain, time);
+    if (options.maxDurationSec && options.maxDurationSec > 0.02) {
+      const stopAt = time + options.maxDurationSec;
+      g.gain.setValueAtTime(peakGain, Math.max(time + 0.01, stopAt - 0.025));
+      g.gain.exponentialRampToValueAtTime(0.001, stopAt);
+    }
 
-    src.connect(g).connect(this.masterBus);
+    if (options.softenHz) {
+      const lpf = ctx.createBiquadFilter();
+      lpf.type = 'lowpass';
+      lpf.frequency.setValueAtTime(options.softenHz, time);
+      src.connect(lpf).connect(g).connect(this.masterBus);
+    } else {
+      src.connect(g).connect(this.masterBus);
+    }
+
     src.start(time);
+    if (options.maxDurationSec && options.maxDurationSec > 0.02) {
+      src.stop(time + options.maxDurationSec + 0.005);
+    }
     return true;
   }
 
@@ -328,68 +334,40 @@ export class TonbakSynth {
     const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
-      const totalDur = Math.max(0.1, options.durationSec ?? 0.35);
-
-      // Prefer real recorded teacher Riz / Glissando sample, fitted cleanly to fill `totalDur`!
-      const kitMap = this.kitCache.get(this.activeKit);
-      const preferredKey: SampleKey = options.glissando ? 'gliss' : 'riz';
-      const recordedList = kitMap?.get(preferredKey);
-      if (recordedList && recordedList.length > 0 && this.masterBus) {
-        const idx = this.rrCursor.get(preferredKey) ?? 0;
-        const buf = recordedList[idx % recordedList.length];
-        this.rrCursor.set(preferredKey, (idx + 1) % recordedList.length);
-
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        if (options.glissando) {
-          // Gently time-fit and sweep pitch direction (downward slides high->low, upward slides low->high)
-          const baseRate = Math.max(0.72, Math.min(1.45, buf.duration / totalDur));
-          if (options.glissando === 'down') {
-            src.playbackRate.setValueAtTime(baseRate * 1.18, time);
-            src.playbackRate.exponentialRampToValueAtTime(baseRate * 0.86, time + totalDur);
-          } else {
-            src.playbackRate.setValueAtTime(baseRate * 0.92, time);
-            src.playbackRate.exponentialRampToValueAtTime(baseRate * 1.16, time + totalDur);
-          }
-        } else {
-          // Loop the real Riz roll seamlessly if the note is longer than the clip
-          src.loop = totalDur > buf.duration;
-          src.playbackRate.setValueAtTime(1 + (Math.random() - 0.5) * 0.025, time);
-        }
-
-        const g = ctx.createGain();
-        const peakG = Math.max(0.05, humanVel * 0.92);
-        g.gain.setValueAtTime(0.001, time);
-        g.gain.linearRampToValueAtTime(peakG, time + 0.012);
-        g.gain.setValueAtTime(peakG, Math.max(time + 0.02, time + totalDur - 0.024));
-        g.gain.exponentialRampToValueAtTime(0.001, time + totalDur + 0.006);
-
-        src.connect(g).connect(this.masterBus);
-        src.start(time);
-        src.stop(time + totalDur + 0.012);
-        return;
-      }
-
-      // Fallback for kits without recorded Riz clips: duration-filling alternating finger cascade
-      const targetStepSec = 0.038;
-      const count = Math.max(3, Math.round(totalDur / targetStepSec));
+      // Silky, continuous Persian Tonbak Riz that dynamically fills 100% of `durationSec`
+      // (~31 strokes/sec alternating 4-finger cascade built from the kit's real rim samples).
+      const totalDur = Math.max(0.11, options.durationSec ?? 0.35);
+      const targetStepSec = 0.031;
+      const count = Math.max(4, Math.round(totalDur / targetStepSec));
       const exactStep = totalDur / count;
-      const cascade: SampleKey[] = ['bak_r', 'bak_l', 'eshareh', 'bak_l'];
+      const cascade: Array<{ key: SampleKey; rateBias: number; gainBias: number }> = [
+        { key: 'bak_r', rateBias: 0.98, gainBias: 0.66 },
+        { key: 'bak_l', rateBias: 1.03, gainBias: 0.62 },
+        { key: 'eshareh', rateBias: 1.06, gainBias: 0.85 },
+        { key: 'bak_l', rateBias: 1.0, gainBias: 0.6 },
+      ];
+
       for (let i = 0; i < count; i += 1) {
-        const jitter = i === 0 || i === count - 1 ? 0 : (Math.random() - 0.5) * 0.0025;
+        const jitter = i === 0 || i === count - 1 ? 0 : (Math.random() - 0.5) * 0.002;
         const t = Math.max(ctx.currentTime + 0.002, time + i * exactStep + jitter);
         const phase = i / Math.max(1, count - 1);
-        const swell = 0.62 + 0.34 * Math.sin(phase * Math.PI);
-        const key = cascade[i % cascade.length];
-        const glissRate =
+        // Smooth organic dynamic arch: gentle entry -> velvety sustained roll -> clean release
+        const swell = 0.58 + 0.38 * Math.sin(phase * Math.PI);
+        const finger = cascade[i % cascade.length];
+        const glissShift =
           options.glissando === 'down'
-            ? 1.24 - phase * 0.3
+            ? 1.24 - phase * 0.36
             : options.glissando
-              ? 1 + phase * 0.28
-              : 1;
-        this.playRoundRobinSample(ctx, key, t, {
-          gain: humanVel * swell * (key === 'eshareh' ? 0.92 : 0.78),
-          rate: glissRate,
+              ? 0.9 + phase * 0.34
+              : 1.0;
+
+        // Trim tail of the final strokes so the roll stops cleanly right at the next beat
+        const remainingSec = Math.max(0.055, time + totalDur - t + 0.025);
+        this.playRoundRobinSample(ctx, finger.key, t, {
+          gain: humanVel * swell * finger.gainBias,
+          rate: finger.rateBias * glissShift,
+          softenHz: options.glissando ? 5600 : 4600,
+          maxDurationSec: Math.min(0.095, remainingSec),
         });
       }
       return;
