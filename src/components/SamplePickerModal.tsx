@@ -15,6 +15,7 @@ type TargetStrokeKey =
   | 'tom'
   | 'bak_r'
   | 'bak_l'
+  | 'pelang'
   | 'pelang_r'
   | 'pelang_l'
   | 'chap'
@@ -30,11 +31,12 @@ const STROKE_TABS: Array<{
 }> = [
   { key: 'tom', label: 'Tom (تُم)', defaultPool: 'tom', maxPicks: 3 },
   { key: 'bak_r', label: 'Bak R (^)', defaultPool: 'bak_r', maxPicks: 3 },
-  { key: 'bak_l', label: 'Bak L (v̇)', defaultPool: 'bak_l', maxPicks: 3 },
+  { key: 'bak_l', label: 'Bak L (v)', defaultPool: 'bak_r', maxPicks: 3 },
+  { key: 'pelang', label: 'Pelang L (v̇)', defaultPool: 'bak_l', maxPicks: 2 },
   { key: 'pelang_r', label: 'Cascade R (◠^)', defaultPool: 'cascade', maxPicks: 2 },
   { key: 'pelang_l', label: 'Cascade L (◠v)', defaultPool: 'cascade', maxPicks: 2 },
-  { key: 'chap', label: 'Chap (^̄)', defaultPool: 'bak_r', maxPicks: 2 },
-  { key: 'eshareh', label: 'Eshareh (5)', defaultPool: 'bak_r', maxPicks: 2 },
+  { key: 'chap', label: 'Bak Edge (^̄)', defaultPool: 'bak_l', maxPicks: 2 },
+  { key: 'eshareh', label: 'Tom Grace (S)', defaultPool: 'tom', maxPicks: 2 },
 ];
 
 interface SamplePickerModalProps {

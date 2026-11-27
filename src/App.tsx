@@ -64,7 +64,7 @@ import { SharedView } from './components/SharedView';
 import { SamplePickerModal } from './components/SamplePickerModal';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v6';
-const STORAGE_PAGES_KEY = 'zarbsaz_pages_v6';
+const STORAGE_PAGES_KEY = 'zarbsaz_pages_v7';
 const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v6';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';

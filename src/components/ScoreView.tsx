@@ -41,6 +41,8 @@ const BEAM_GAP = 6.2;
 function StrokeGlyph({
   stroke,
   finger,
+  placement,
+  rizStyle,
   glissando,
   x,
   y,
@@ -49,6 +51,8 @@ function StrokeGlyph({
 }: {
   stroke: StrokeType;
   finger?: string;
+  placement?: 'center' | 'edge' | 'loop';
+  rizStyle?: 'edge' | 'pelang' | 'full';
   glissando?: 'up' | 'down' | boolean;
   x: number;
   y: number;
@@ -71,18 +75,58 @@ function StrokeGlyph({
       )}
 
       {stroke === 'bak_r' && (
-        // Crisp caret ^ (Right-hand Bak)
-        <path
-          d="M -4.8 1 L 0 -10.5 L 4.8 1"
-          fill="none"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        // Caret ^ (Right-hand Bak) with optional + (center), - (edge), or Page 112 loop above
+        <g>
+          <path
+            d="M -4.8 1 L 0 -10.5 L 4.8 1"
+            fill="none"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {placement === 'center' && (
+            <g strokeWidth="1.6" strokeLinecap="round">
+              <line x1={-3.6} y1={-15.5} x2={3.6} y2={-15.5} />
+              <line x1={0} y1={-19.1} x2={0} y2={-11.9} />
+            </g>
+          )}
+          {placement === 'edge' && (
+            <line x1={-5.5} y1={-14.5} x2={5.5} y2={-14.5} strokeWidth="1.8" strokeLinecap="round" />
+          )}
+          {placement === 'loop' && (
+            // Authentic Rajabi loop/oval curl over ^ (Page 112 lines 1-4)
+            <path
+              d="M -4.2 -15.5 C -4.2 -19.5 1.8 -19.5 1.8 -15.8 C 1.8 -13.5 -3.6 -13.2 -4.2 -15.5 M -1.2 -13.8 L 5.6 -13.8"
+              fill="none"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+        </g>
       )}
 
       {stroke === 'bak_l' && (
-        // Inverted caret v with dot above and optional finger number (2, 3, =)
+        // Plain inverted caret v (Left-hand Bak, NO dot; optional = for 2-finger center Bak)
+        <g>
+          <path
+            d="M -4.8 -10.5 L 0 1 L 4.8 -10.5"
+            fill="none"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {finger === '=' && (
+            <g strokeWidth="1.4">
+              <line x1={-4.5} y1={-15.5} x2={4.5} y2={-15.5} />
+              <line x1={-4.5} y1={-19} x2={4.5} y2={-19} />
+            </g>
+          )}
+        </g>
+      )}
+
+      {stroke === 'pelang' && (
+        // Inverted caret v with dot above + optional finger number (1=pinky, 2, 3, 4, =)
         <g>
           <path
             d="M -4.8 -10.5 L 0 1 L 4.8 -10.5"
@@ -106,16 +150,25 @@ function StrokeGlyph({
             </text>
           )}
           {finger === '=' && (
-            <g strokeWidth="1.4">
-              <line x1={-4.5} y1={-21} x2={4.5} y2={-21} />
-              <line x1={-4.5} y1={-24.5} x2={4.5} y2={-24.5} />
+            <g strokeWidth="1.4" strokeLinecap="round">
+              <line x1={-4.2} y1={-20.5} x2={4.2} y2={-22.5} />
+              <line x1={-4.2} y1={-24} x2={4.2} y2={-26} />
             </g>
           )}
         </g>
       )}
 
+      {stroke === 'bak_pelang' && (
+        // Dotted × (×̇ — simultaneous Bak R + Pelang L on Page 30)
+        <g>
+          <line x1={-4.6} y1={-9.5} x2={4.6} y2={0.5} strokeWidth="1.8" strokeLinecap="round" />
+          <line x1={4.6} y1={-9.5} x2={-4.6} y2={0.5} strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx={0} cy={-14.2} r={1.6} stroke="none" />
+        </g>
+      )}
+
       {stroke === 'pelang_r' && (
-        // Caret ^ with curved arc above
+        // Caret ^ with curved arc above (Right-hand 4-finger cascade)
         <g>
           <path
             d="M -4.5 1 L 0 -9.5 L 4.5 1"
@@ -129,7 +182,7 @@ function StrokeGlyph({
       )}
 
       {stroke === 'pelang_l' && (
-        // Inverted caret v with curved arc above
+        // Inverted caret v with curved arc above (Left-hand 4-finger cascade)
         <g>
           <path
             d="M -4.5 -9.5 L 0 1 L 4.5 -9.5"
@@ -143,7 +196,7 @@ function StrokeGlyph({
       )}
 
       {stroke === 'chap' && (
-        // Caret ^ with macron bar above
+        // Caret ^ with macron bar above (Right-hand Bak at the edge)
         <g>
           <path
             d="M -4.6 1 L 0 -9.5 L 4.6 1"
@@ -157,7 +210,12 @@ function StrokeGlyph({
       )}
 
       {stroke === 'riz' && (
-        // ^v with curved arc above (or + for downward gliss, - for upward gliss as in Bahman Rajabi)
+        // ^v Riz:
+        // - glissando down: + above ^v
+        // - glissando up:   - above ^v
+        // - rizStyle 'edge':   plain ^v (no arc, no dot — Page 46 line 3)
+        // - rizStyle 'pelang': ^v̇ (dot over v — Page 46 line 4)
+        // - rizStyle 'full' (default): ◠(^v) curved arc over both (Page 46 line 5)
         <g>
           <path
             d="M -7.5 1 L -3.8 -9 L 0 1"
@@ -180,6 +238,8 @@ function StrokeGlyph({
             </g>
           ) : glissando === 'up' || glissando === true ? (
             <line x1={-4.5} y1={-15} x2={5.5} y2={-15} strokeWidth="1.7" strokeLinecap="round" />
+          ) : rizStyle === 'edge' ? null : rizStyle === 'pelang' ? (
+            <circle cx={4.8} cy={-13.8} r={1.6} stroke="none" />
           ) : (
             <path d="M -9 -12.5 Q 0.5 -20 10 -12.5" fill="none" strokeWidth="1.6" strokeLinecap="round" />
           )}
@@ -187,16 +247,18 @@ function StrokeGlyph({
       )}
 
       {stroke === 'eshareh' && (
+        // Authentic Rajabi S-shaped Tom grace lead-in before Riz (Pages 112-113)
         <text
           x={0}
           y={0}
           textAnchor="middle"
-          fontSize="11.5"
+          fontSize="12"
           fontWeight="700"
+          fontStyle="italic"
           fontFamily="Georgia, serif"
           stroke="none"
         >
-          5
+          S
         </text>
       )}
     </g>
@@ -499,7 +561,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                 const innerWidth = Math.max(24, mWidth - innerPadLeft - innerPadRight);
 
                 const noteWeights = measure.notes.map((n) => {
-                  const g = n.graceNotes ? n.graceNotes.length * 0.45 : 0;
+                  const g = n.graceNotes ? n.graceNotes.length * 0.62 : 0;
                   const base = Math.max(0.55, Math.pow(getNoteQuarterBeats(n), 0.55));
                   return base + g;
                 });
@@ -508,8 +570,8 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                 let nCursor = mStartX + innerPadLeft;
                 const noteXs = measure.notes.map((n, idx) => {
                   const slotW = (noteWeights[idx] / sumNW) * innerWidth;
-                  const graceOffset = n.graceNotes ? Math.min(20, n.graceNotes.length * 10) : 0;
-                  const cx = nCursor + slotW * 0.42 + graceOffset * 0.45;
+                  const graceOffset = n.graceNotes ? Math.min(46, n.graceNotes.length * 10.5) : 0;
+                  const cx = nCursor + slotW * 0.36 + graceOffset * 0.65;
                   nCursor += slotW;
                   return cx;
                 });
@@ -768,7 +830,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                       </g>
                                     );
                                   })}
-                                  {/* Grace note beam (if 2+) or slash (if 1) */}
+                                  {/* Grace note beam (2 beams for 2 notes, 3 beams for 3-4 notes) or slash (if 1) */}
                                   {note.graceNotes.length >= 2 ? (
                                     <>
                                       <line
@@ -777,16 +839,26 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                         x2={nx - 11 + 2.8}
                                         y2={staffY - 22}
                                         stroke={inkColor}
-                                        strokeWidth={2.4}
+                                        strokeWidth={2.2}
                                       />
                                       <line
                                         x1={nx - 11 - (note.graceNotes.length - 1) * 10 + 2.8}
-                                        y1={staffY - 18}
+                                        y1={staffY - 18.5}
                                         x2={nx - 11 + 2.8}
-                                        y2={staffY - 18}
+                                        y2={staffY - 18.5}
                                         stroke={inkColor}
-                                        strokeWidth={2.4}
+                                        strokeWidth={2.2}
                                       />
+                                      {note.graceNotes.length >= 3 && (
+                                        <line
+                                          x1={nx - 11 - (note.graceNotes.length - 1) * 10 + 2.8}
+                                          y1={staffY - 15}
+                                          x2={nx - 11 + 2.8}
+                                          y2={staffY - 15}
+                                          stroke={inkColor}
+                                          strokeWidth={2.2}
+                                        />
+                                      )}
                                     </>
                                   ) : (
                                     <line
@@ -800,7 +872,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                   )}
                                   {/* Curved slur from grace notes into main note */}
                                   <path
-                                    d={`M ${nx - 11 - (note.graceNotes.length - 1) * 10} ${staffY + 5} Q ${nx - 9} ${staffY + 13} ${nx - 2} ${staffY + 5}`}
+                                    d={`M ${nx - 11 - (note.graceNotes.length - 1) * 10} ${staffY + 5} Q ${nx - 6 - ((note.graceNotes.length - 1) * 10) / 2} ${staffY + 13} ${nx - 2} ${staffY + 5}`}
                                     fill="none"
                                     stroke={inkColor}
                                     strokeWidth={1.1}
@@ -917,6 +989,8 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                   <StrokeGlyph
                                     stroke={note.stroke}
                                     finger={note.finger}
+                                    placement={note.placement}
+                                    rizStyle={note.rizStyle}
                                     glissando={note.glissando}
                                     x={nx}
                                     y={stemTopY - 11}

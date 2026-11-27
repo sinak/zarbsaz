@@ -243,4 +243,41 @@ describe('OCR JSON normalization & copy-paste cloning', () => {
     expect(stats.peakHz).toBeGreaterThanOrEqual(190);
     expect(stats.peakHz).toBeLessThanOrEqual(215);
   });
+
+  it('preserves Rajabi pelang finger 1, bak_pelang, placement, and 3 rizStyle variants in normalizeOcrPage', () => {
+    const page = normalizeOcrPage(
+      {
+        title: 'Rajabi Audit',
+        timeSignature: { numerator: 2, denominator: 4 },
+        measures: [
+          {
+            notes: [
+              {
+                stroke: 'bak_r',
+                duration: 'sixteenth',
+                placement: 'loop',
+                graceNotes: [
+                  { stroke: 'pelang', finger: '1' },
+                  { stroke: 'pelang', finger: '2' },
+                  { stroke: 'pelang', finger: '3' },
+                  { stroke: 'pelang', finger: '=' },
+                ],
+              },
+              { stroke: 'bak_r', duration: 'sixteenth', placement: 'center' },
+              { stroke: 'bak_pelang', duration: 'eighth' },
+              { stroke: 'riz', duration: 'quarter', rizStyle: 'pelang' },
+            ],
+          },
+        ],
+      },
+      'Fallback'
+    );
+
+    const notes = page.measures[0].notes;
+    expect(notes[0].placement).toBe('loop');
+    expect(notes[0].graceNotes?.map((g) => g.finger)).toEqual(['1', '2', '3', '=']);
+    expect(notes[1].placement).toBe('center');
+    expect(notes[2].stroke).toBe('bak_pelang');
+    expect(notes[3].rizStyle).toBe('pelang');
+  });
 });

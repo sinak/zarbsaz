@@ -1,13 +1,15 @@
 export type StrokeType =
-  | 'tom'      // ؟  (تُم — deep bass center stroke)
-  | 'bak_r'    // ^  (بک راست — right-hand rim stroke)
-  | 'bak_l'    // v̇  (بک چپ — left-hand rim stroke)
-  | 'pelang_r' // ^ with arc (پلنگ راست — right snap/flick)
-  | 'pelang_l' // v with arc (پلنگ چپ — left snap/flick)
-  | 'chap'     // ^̄  (چپ / accented muted rim)
-  | 'riz'      // ^v with arc + tremolo (ریز — alternating roll)
-  | 'eshareh'  // اشاره — soft ornamental tap
-  | 'rest';    // سکوت — rest
+  | 'tom'        // ؟  (تُم — deep bass center stroke)
+  | 'bak_r'      // ^  (بک راست — right-hand Bak; + = center, - = edge, loop = Page 112)
+  | 'bak_l'      // v  (بک چپ — left-hand Bak, NO dot; = = two-finger center Bak)
+  | 'pelang'     // v̇  (پلنگ چپ — left-hand finger click with dot + finger 1/2/3/=)
+  | 'bak_pelang' // ×̇  (بک + پلنگ — simultaneous Bak R + Pelang L, Page 30)
+  | 'pelang_r'   // ◠^ (اشاره راست — right-hand 4-finger cascade)
+  | 'pelang_l'   // ◠v (اشاره چپ — left-hand 4-finger cascade)
+  | 'chap'       // ^̄  (بک لبه — right-hand Bak at the edge)
+  | 'riz'        // ^v (ریز — alternating roll: edge ^v, pelang ^v̇, or full ◠^v)
+  | 'eshareh'    // S  (تُم اشاره — soft Tom grace lead-in before Riz)
+  | 'rest';      // سکوت — rest
 
 export type Duration =
   | 'whole'
@@ -17,7 +19,11 @@ export type Duration =
   | 'sixteenth'
   | 'thirtysecond';
 
-export type FingerMark = '2' | '3' | '4' | '=';
+export type FingerMark = '1' | '2' | '3' | '4' | '=';
+
+export type BakPlacement = 'center' | 'edge' | 'loop';
+
+export type RizStyle = 'edge' | 'pelang' | 'full';
 
 export interface GraceNote {
   stroke: StrokeType;
@@ -32,6 +38,10 @@ export interface TonbakNote {
   duration: Duration;
   dotted?: boolean;
   finger?: FingerMark;
+  /** Optional placement/articulation for Bak R (^): center (^+), edge (^̄), or Page 112 loop. */
+  placement?: BakPlacement;
+  /** Optional Riz notation variant: edge (^v), bak+pelang (^v̇), or full 4-finger (◠^v). */
+  rizStyle?: RizStyle;
   tremolo?: boolean;
   glissando?: GlissandoDirection | boolean;
   accent?: boolean;
@@ -139,31 +149,47 @@ export const STROKE_INFO: Record<StrokeType, StrokeInfo> = {
     label: 'Bak L',
     persian: 'بک چپ',
     shortcut: 'L',
-    description: 'Left-hand rim stroke (v̇)',
+    description: 'Left-hand Bak stroke (v, no dot; v⁼ = 2-finger center Bak)',
     color: '#2d6a4f',
+  },
+  pelang: {
+    type: 'pelang',
+    label: 'Pelang L',
+    persian: 'پلنگ چپ',
+    shortcut: 'K',
+    description: 'Left-hand finger click (v̇ with finger 1=pinky, 2, 3, =)',
+    color: '#1b7a5a',
+  },
+  bak_pelang: {
+    type: 'bak_pelang',
+    label: 'Bak+Pel',
+    persian: 'بک و پلنگ',
+    shortcut: 'X',
+    description: 'Simultaneous Bak R + Pelang L (×̇)',
+    color: '#8c4a27',
   },
   pelang_r: {
     type: 'pelang_r',
-    label: 'Pelang R',
-    persian: 'پلنگ راست',
+    label: 'Cascade R',
+    persian: 'اشاره راست',
     shortcut: 'P',
-    description: 'Right-hand finger snap (^ with arc)',
+    description: 'Right-hand 4-finger cascade (◠^)',
     color: '#7a4988',
   },
   pelang_l: {
     type: 'pelang_l',
-    label: 'Pelang L',
-    persian: 'پلنگ چپ',
+    label: 'Cascade L',
+    persian: 'اشاره چپ',
     shortcut: 'O',
-    description: 'Left-hand finger snap (v with arc)',
+    description: 'Left-hand 4-finger cascade (◠v)',
     color: '#6b4c7a',
   },
   chap: {
     type: 'chap',
-    label: 'Chap',
-    persian: 'چپ',
+    label: 'Bak Edge',
+    persian: 'بک لبه',
     shortcut: 'C',
-    description: 'Accented / damped rim stroke (^̄)',
+    description: 'Right-hand Bak at the edge (^̄)',
     color: '#8f5b14',
   },
   riz: {
@@ -171,15 +197,15 @@ export const STROKE_INFO: Record<StrokeType, StrokeInfo> = {
     label: 'Riz',
     persian: 'ریز',
     shortcut: 'Z',
-    description: 'Alternating finger roll (^v tremolo)',
+    description: 'Alternating roll (^v edge, ^v̇ bak+pelang, or ◠^v 4-finger)',
     color: '#b0413e',
   },
   eshareh: {
     type: 'eshareh',
-    label: 'Eshareh',
-    persian: 'اشاره',
+    label: 'Tom Grace',
+    persian: 'تُم اشاره',
     shortcut: 'E',
-    description: 'Soft ornamental tap',
+    description: 'Soft Tom lead-in before a Riz (S)',
     color: '#5a6270',
   },
   rest: {
@@ -292,6 +318,8 @@ const VALID_STROKES = new Set<StrokeType>([
   'tom',
   'bak_r',
   'bak_l',
+  'pelang',
+  'bak_pelang',
   'pelang_r',
   'pelang_l',
   'chap',
@@ -309,7 +337,7 @@ const VALID_DURATIONS = new Set<Duration>([
   'thirtysecond',
 ]);
 
-const VALID_FINGERS = new Set<FingerMark>(['2', '3', '4', '=']);
+const VALID_FINGERS = new Set<FingerMark>(['1', '2', '3', '4', '=']);
 
 /** Sanitize untrusted JSON (from Vision OCR or JSON import) into a valid TonbakPage. */
 export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', sourceImage?: string): TonbakPage {
@@ -358,8 +386,16 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
             : 'eighth';
           const finger: FingerMark | undefined = VALID_FINGERS.has(n.finger as FingerMark)
             ? (n.finger as FingerMark)
-            : stroke === 'bak_l'
+            : stroke === 'pelang'
               ? '2'
+              : undefined;
+          const placement: BakPlacement | undefined =
+            n.placement === 'center' || n.placement === 'edge' || n.placement === 'loop'
+              ? n.placement
+              : undefined;
+          const rizStyle: RizStyle | undefined =
+            n.rizStyle === 'edge' || n.rizStyle === 'pelang' || n.rizStyle === 'full'
+              ? n.rizStyle
               : undefined;
           const graceNotes = Array.isArray(n.graceNotes)
             ? n.graceNotes
@@ -384,6 +420,8 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
             duration,
             dotted: Boolean(n.dotted),
             finger,
+            placement,
+            rizStyle,
             tremolo: Boolean(n.tremolo) || stroke === 'riz',
             glissando:
               n.glissando === 'up' || n.glissando === 'down'

@@ -68,7 +68,15 @@ export function buildPlaybackTimeline(
   return { events, totalDurationSec: cursorSec, quarterSec };
 }
 
-type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
+type SampleKey =
+  | 'tom'
+  | 'bak_r'
+  | 'bak_l'
+  | 'pelang'
+  | 'pelang_r'
+  | 'pelang_l'
+  | 'chap'
+  | 'eshareh';
 
 export type TonbakKitId = 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
 
@@ -112,6 +120,7 @@ function getKitUrls(kit: TonbakKitId): Record<SampleKey, string[]> {
     tom: [`${prefix}/tom_1.wav`, `${prefix}/tom_2.wav`, `${prefix}/tom_3.wav`],
     bak_r: [`${prefix}/bak_r_1.wav`, `${prefix}/bak_r_2.wav`, `${prefix}/bak_r_3.wav`],
     bak_l: [`${prefix}/bak_l_1.wav`, `${prefix}/bak_l_2.wav`, `${prefix}/bak_l_3.wav`],
+    pelang: [`${prefix}/pelang_1.wav`, `${prefix}/pelang_2.wav`, `${prefix}/bak_l_1.wav`],
     pelang_r: [`${prefix}/pelang_r_1.wav`, `${prefix}/pelang_r_2.wav`],
     pelang_l: [`${prefix}/pelang_l_1.wav`, `${prefix}/pelang_l_2.wav`],
     chap: [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
@@ -322,6 +331,8 @@ export class TonbakSynth {
     options: {
       velocity?: number;
       finger?: string;
+      placement?: 'center' | 'edge' | 'loop';
+      rizStyle?: 'edge' | 'pelang' | 'full';
       durationSec?: number;
       glissando?: 'up' | 'down' | boolean;
     } = {}
@@ -334,24 +345,37 @@ export class TonbakSynth {
     const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
-      // Silky, continuous Persian Tonbak Riz that dynamically fills 100% of `durationSec`
-      // (~31 strokes/sec alternating 4-finger cascade built from the kit's real rim samples).
+      // Continuous Persian Tonbak Riz that dynamically fills 100% of `durationSec`:
+      // - 'edge' (^v): alternating Bak R + Bak L near edge
+      // - 'pelang' (^v̇): alternating edge Bak R + crisp Pelang L click
+      // - 'full' (◠^v): smooth 4-finger alternating roll
       const totalDur = Math.max(0.11, options.durationSec ?? 0.35);
-      const targetStepSec = 0.031;
+      const rizStyle = options.rizStyle ?? 'full';
+      const targetStepSec = rizStyle === 'full' ? 0.031 : 0.036;
       const count = Math.max(4, Math.round(totalDur / targetStepSec));
       const exactStep = totalDur / count;
-      const cascade: Array<{ key: SampleKey; rateBias: number; gainBias: number }> = [
-        { key: 'bak_r', rateBias: 0.98, gainBias: 0.66 },
-        { key: 'bak_l', rateBias: 1.03, gainBias: 0.62 },
-        { key: 'eshareh', rateBias: 1.06, gainBias: 0.85 },
-        { key: 'bak_l', rateBias: 1.0, gainBias: 0.6 },
-      ];
+      const cascade: Array<{ key: SampleKey; rateBias: number; gainBias: number }> =
+        rizStyle === 'edge'
+          ? [
+              { key: 'chap', rateBias: 1.02, gainBias: 0.72 },
+              { key: 'bak_l', rateBias: 1.04, gainBias: 0.66 },
+            ]
+          : rizStyle === 'pelang'
+            ? [
+                { key: 'chap', rateBias: 1.03, gainBias: 0.72 },
+                { key: 'pelang', rateBias: 1.06, gainBias: 0.78 },
+              ]
+            : [
+                { key: 'bak_r', rateBias: 0.98, gainBias: 0.66 },
+                { key: 'bak_l', rateBias: 1.03, gainBias: 0.62 },
+                { key: 'pelang', rateBias: 1.06, gainBias: 0.76 },
+                { key: 'bak_l', rateBias: 1.0, gainBias: 0.6 },
+              ];
 
       for (let i = 0; i < count; i += 1) {
         const jitter = i === 0 || i === count - 1 ? 0 : (Math.random() - 0.5) * 0.002;
         const t = Math.max(ctx.currentTime + 0.002, time + i * exactStep + jitter);
         const phase = i / Math.max(1, count - 1);
-        // Smooth organic dynamic arch: gentle entry -> velvety sustained roll -> clean release
         const swell = 0.58 + 0.38 * Math.sin(phase * Math.PI);
         const finger = cascade[i % cascade.length];
         const glissShift =
@@ -361,15 +385,15 @@ export class TonbakSynth {
               ? 0.84 * Math.pow(1.38 / 0.84, phase)
               : 1.0;
 
-        // Real tonbak glissando changes both tension pitch AND brightness as palm presses/releases skin
         const softenHz =
           options.glissando === 'down'
             ? 7200 - phase * 4000
             : options.glissando
               ? 3200 + phase * 4000
-              : 4600;
+              : rizStyle === 'pelang'
+                ? 6200
+                : 4600;
 
-        // Trim tail of the final strokes so the roll stops cleanly right at the next beat
         const remainingSec = Math.max(0.055, time + totalDur - t + 0.025);
         this.playRoundRobinSample(ctx, finger.key, t, {
           gain: humanVel * swell * finger.gainBias,
@@ -381,11 +405,26 @@ export class TonbakSynth {
       return;
     }
 
-    // One-hand 4-finger cascade (curved arc ◠ over ^ or v in Bahman Rajabi notation:
-    // pinky 1 -> ring 2 -> middle 3 -> index 4 rippling rapidly on one hand).
-    // In Teacher's Kit, pelang_r / pelang_l are real recorded 4-finger cascade samples
-    // (extracted from the teacher's videos or recorded on the user's mic), so play them directly!
-    // Other built-in kits use single-hit rim samples and synthesize the 4-finger cascade.
+    // Simultaneous Bak R + Pelang L (×̇ on Page 30)
+    if (stroke === 'bak_pelang') {
+      this.playRoundRobinSample(ctx, 'bak_r', time, { gain: humanVel * 0.82, rate: 1.0 });
+      this.playRoundRobinSample(ctx, 'pelang', time + 0.002, { gain: humanVel * 0.86, rate: 1.04 });
+      return;
+    }
+
+    // Soft Tom lead-in grace note before a Riz (S / تُم اشاره)
+    if (stroke === 'eshareh') {
+      this.playRoundRobinSample(ctx, 'tom', time, {
+        gain: humanVel * 0.68,
+        rate: 1.03,
+        maxDurationSec: 0.18,
+      });
+      return;
+    }
+
+    // One-hand 4-finger cascade (curved arc ◠ over ^ or v in Bahman Rajabi notation).
+    // In Teacher's Kit, pelang_r / pelang_l are real recorded 4-finger cascade samples,
+    // so play them directly! Other built-in kits synthesize the 4-finger cascade.
     if (stroke === 'pelang_r' || stroke === 'pelang_l') {
       const isGrace = (options.durationSec ?? 0.2) < 0.08;
       if (this.activeKit === 'teacher') {
@@ -398,7 +437,6 @@ export class TonbakSynth {
       }
 
       const stepSec = isGrace ? 0.013 : 0.018;
-      // Natural 4-finger gradient: pinky (lighter/brighter) -> ring -> middle -> index (firmer)
       const fingerGains = [0.56, 0.72, 0.86, 1.0];
       const fingerRates = [1.08, 1.04, 1.0, 0.96];
       for (let f = 0; f < 4; f += 1) {
@@ -413,12 +451,53 @@ export class TonbakSynth {
       return;
     }
 
-    const fingerRate =
-      stroke === 'bak_l' && (options.finger === '3' || options.finger === '=') ? 1.05 : 1.0;
+    // Bak R placement: + = center of skin (warmer/deeper), - = edge (crisper)
+    if (stroke === 'bak_r' && options.placement === 'center') {
+      this.playRoundRobinSample(ctx, 'bak_r', time, {
+        gain: humanVel * 1.04,
+        rate: 0.88,
+        softenHz: 3100,
+      });
+      return;
+    }
+    if (stroke === 'bak_r' && options.placement === 'edge') {
+      this.playRoundRobinSample(ctx, 'chap', time, {
+        gain: humanVel,
+        rate: 1.05,
+      });
+      return;
+    }
+
+    // Left-hand 2-finger center Bak (v⁼ without dot)
+    if (stroke === 'bak_l' && options.finger === '=') {
+      this.playRoundRobinSample(ctx, 'bak_l', time, {
+        gain: humanVel * 1.04,
+        rate: 0.88,
+        softenHz: 2900,
+      });
+      return;
+    }
+
+    // Left-hand Pelang click (v̇ with finger 1=pinky, 2, 3, =)
+    if (stroke === 'pelang') {
+      const fRate =
+        options.finger === '1'
+          ? 1.12
+          : options.finger === '3'
+            ? 1.04
+            : options.finger === '='
+              ? 0.96
+              : 1.0;
+      this.playRoundRobinSample(ctx, 'pelang', time, {
+        gain: humanVel,
+        rate: fRate,
+      });
+      return;
+    }
 
     this.playRoundRobinSample(ctx, stroke, time, {
-      gain: stroke === 'eshareh' ? humanVel * 0.72 : humanVel,
-      rate: fingerRate,
+      gain: humanVel,
+      rate: 1.0,
     });
   }
 
@@ -433,12 +512,14 @@ export class TonbakSynth {
         ? this.activeKit === 'teacher'
           ? 0.078
           : 0.056
-        : 0.033;
+        : note.graceNotes.length >= 4
+          ? 0.026
+          : 0.036;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);
         this.triggerStroke(g.stroke, gt, {
-          velocity: 0.72,
+          velocity: g.stroke === 'eshareh' || g.stroke === 'tom' ? 0.8 : 0.72,
           finger: g.finger,
           durationSec: 0.05,
         });
@@ -449,6 +530,8 @@ export class TonbakSynth {
     this.triggerStroke(effectiveStroke, time, {
       velocity: note.accent ? 1.12 : 0.95,
       finger: note.finger,
+      placement: note.placement,
+      rizStyle: note.rizStyle,
       durationSec,
       glissando: note.glissando,
     });

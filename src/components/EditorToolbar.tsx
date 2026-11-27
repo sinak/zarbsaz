@@ -53,9 +53,11 @@ const STROKE_ORDER: StrokeType[] = [
   'tom',
   'bak_r',
   'bak_l',
+  'pelang',
+  'bak_pelang',
+  'chap',
   'pelang_r',
   'pelang_l',
-  'chap',
   'riz',
   'eshareh',
   'rest',
@@ -199,12 +201,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     </svg>
                   )}
                   {stroke === 'bak_r' && '^'}
-                  {stroke === 'bak_l' && 'v̇'}
+                  {stroke === 'bak_l' && 'v'}
+                  {stroke === 'pelang' && 'v̇'}
+                  {stroke === 'bak_pelang' && '×̇'}
                   {stroke === 'pelang_r' && '◠^'}
                   {stroke === 'pelang_l' && '◠v'}
                   {stroke === 'chap' && '^̄'}
                   {stroke === 'riz' && '^v'}
-                  {stroke === 'eshareh' && '5'}
+                  {stroke === 'eshareh' && 'S'}
                   {stroke === 'rest' && '𝄽'}
                 </span>
                 <span className="tb-btn-label">{info.label}</span>
@@ -296,10 +300,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             type="button"
             className="tb-btn"
             aria-disabled={!selectedNote ? 'true' : undefined}
-            title="Cycle finger mark (2, 3, =, none)"
+            title="Cycle finger mark (1, 2, 3, =, none)"
             onClick={() => {
               if (!selectedNote) return;
-              const order: Array<FingerMark | undefined> = ['2', '3', '=', undefined];
+              const order: Array<FingerMark | undefined> = ['1', '2', '3', '=', undefined];
               const next = order[(order.indexOf(currentFinger) + 1) % order.length];
               onCycleFinger(next);
             }}
