@@ -1119,7 +1119,9 @@ select:focus-visible {
   user-select: none;
 }
 
-/* Mobile Floating Camera Capture Button */
+/* Mobile Floating New (+) Speed-Dial FAB */
+.mobile-fab-wrap,
+.mobile-fab-backdrop,
 .mobile-camera-fab {
   display: none;
 }
@@ -1801,12 +1803,50 @@ select:focus-visible {
     border-bottom: 1px solid var(--border);
   }
 
-  .mobile-camera-fab {
-    display: grid;
-    place-items: center;
+  .mobile-fab-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(24, 18, 12, 0.28);
+    z-index: 29;
+  }
+
+  .mobile-fab-wrap {
     position: fixed;
     right: max(16px, env(safe-area-inset-right, 0px));
     bottom: max(18px, env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 30;
+  }
+
+  .mobile-fab-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .mobile-fab-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--ink);
+    font-size: 0.86rem;
+    font-weight: 600;
+    box-shadow: 0 6px 18px rgba(35, 28, 22, 0.22);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .mobile-camera-fab {
+    display: grid;
+    place-items: center;
     width: 54px;
     height: 54px;
     border-radius: 999px;
@@ -1814,8 +1854,12 @@ select:focus-visible {
     background: linear-gradient(135deg, #d96b27, #9c3b1e);
     color: #fff;
     box-shadow: 0 6px 20px rgba(156, 59, 30, 0.45);
-    z-index: 30;
     cursor: pointer;
+    transition: transform 0.16s ease;
+  }
+
+  .mobile-camera-fab.open {
+    background: #352b22;
   }
 
   /* Clean 2-row native-app mobile header (Row 1: Brand + Actions, Row 2: Full-width Transport) */
@@ -1891,11 +1935,9 @@ select:focus-visible {
 
   .meta-controls {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 5px 8px;
   }
 
   .meta-field {
@@ -1907,6 +1949,7 @@ select:focus-visible {
   .meta-field select {
     padding: 3px 6px;
     font-size: 0.78rem;
+    max-width: 112px;
   }
 
   /* Hide desktop Shift+Click tip on mobile to maximize score space */
@@ -2100,6 +2143,8 @@ select:focus-visible {
   .page-meta-bar,
   .editor-toolbar-shell,
   .reference-photo-pane,
+  .mobile-fab-wrap,
+  .mobile-fab-backdrop,
   .mobile-camera-fab,
   .sampler-mic-bar,
   .score-selection-highlight {

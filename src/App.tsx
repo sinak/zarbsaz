@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   X,
+  Plus,
   ChevronDown,
   ChevronRight,
   Users,
@@ -221,6 +222,7 @@ export function App() {
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [showSourcePhoto, setShowSourcePhoto] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileNewMenuOpen, setMobileNewMenuOpen] = useState(false);
   const [newBookOpen, setNewBookOpen] = useState(false);
   const [newBookTitle, setNewBookTitle] = useState('');
 
@@ -1875,18 +1877,54 @@ export function App() {
             </div>
           </div>
 
-          {/* Mobile Quick Camera FAB */}
-          <button
-            type="button"
-            className="mobile-camera-fab"
-            aria-label="Take photo of sheet music"
-            onClick={() => {
-              setOcrInitialCamera(true);
-              setOcrOpen(true);
-            }}
-          >
-            <Camera size={22} aria-hidden="true" />
-          </button>
+          {/* Mobile New (+) Speed-Dial FAB: Scan Photo/PDF or New Blank Piece */}
+          {mobileNewMenuOpen && (
+            <div
+              className="mobile-fab-backdrop"
+              aria-hidden="true"
+              onClick={() => setMobileNewMenuOpen(false)}
+            />
+          )}
+          <div className="mobile-fab-wrap">
+            {mobileNewMenuOpen && (
+              <div className="mobile-fab-menu" role="menu" aria-label="Create new piece">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="mobile-fab-item"
+                  onClick={() => {
+                    setMobileNewMenuOpen(false);
+                    setOcrInitialCamera(true);
+                    setOcrOpen(true);
+                  }}
+                >
+                  <Camera size={16} aria-hidden="true" />
+                  <span>Scan Photo / PDF</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="mobile-fab-item"
+                  onClick={() => {
+                    setMobileNewMenuOpen(false);
+                    void handleCreateNewPiece(null);
+                  }}
+                >
+                  <FilePlus2 size={16} aria-hidden="true" />
+                  <span>New Blank Piece</span>
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              className={`mobile-camera-fab ${mobileNewMenuOpen ? 'open' : ''}`}
+              aria-label={mobileNewMenuOpen ? 'Close new piece menu' : 'Create new piece'}
+              aria-expanded={mobileNewMenuOpen}
+              onClick={() => setMobileNewMenuOpen((v) => !v)}
+            >
+              {mobileNewMenuOpen ? <X size={22} aria-hidden="true" /> : <Plus size={24} aria-hidden="true" />}
+            </button>
+          </div>
         </main>
       </div>
 
