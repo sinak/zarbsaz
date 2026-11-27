@@ -332,7 +332,8 @@ function measureWeight(m: Measure): number {
  */
 export function layoutSystems(
   measures: Measure[],
-  barsPerLine?: number[]
+  barsPerLine?: number[],
+  options?: { maxBarsPerLine?: number; maxSystemWeight?: number }
 ): Array<{ measureIndices: number[]; weights: number[] }> {
   const systems: Array<{ measureIndices: number[]; weights: number[] }> = [];
   let cursor = 0;
@@ -375,14 +376,15 @@ export function layoutSystems(
   let currentWeights: number[] = [];
   let accWeight = 0;
 
-  // Target total weight per system (~19 weight units fits ~3 standard measures or ~2 dense 16th measures)
-  const MAX_SYSTEM_WEIGHT = 19.5;
+  // Desktop: ~19.5 weight units (up to 4 bars/line). Mobile: ~8.2 weight units (1 dense bar or 2 light bars/line).
+  const MAX_SYSTEM_WEIGHT = options?.maxSystemWeight ?? 19.5;
+  const MAX_BARS = options?.maxBarsPerLine ?? 4;
 
   for (let i = cursor; i < measures.length; i += 1) {
     const w = measureWeight(measures[i]);
     if (
       currentIndices.length > 0 &&
-      (accWeight + w > MAX_SYSTEM_WEIGHT || currentIndices.length >= 4)
+      (accWeight + w > MAX_SYSTEM_WEIGHT || currentIndices.length >= MAX_BARS)
     ) {
       systems.push({ measureIndices: currentIndices, weights: currentWeights });
       currentIndices = [];
@@ -426,14 +428,27 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  // On mobile, never squeeze desktop multi-bar book rows — use 1 dense bar (or at most 2 light bars) per line
+  // on a 480px viewBox so every notehead, beam, and Rajabi glyph stays large and easily tappable.
+  const pageWidth = isDesktop ? PAGE_WIDTH : 480;
+  const marginX = isDesktop ? MARGIN_X : 14;
+  const usableWidth = pageWidth - marginX * 2;
+  const titleBoxWidth = isDesktop ? 290 : 250;
+
   const effectiveBarsPerLine = isDesktop
     ? page.barsPerLine
-    : page.barsPerLine?.length === 1 && page.barsPerLine[0] <= 4
+    : page.barsPerLine?.length === 1 && page.barsPerLine[0] <= 2
       ? page.barsPerLine
       : undefined;
+
   const systems = useMemo(
-    () => layoutSystems(page.measures, effectiveBarsPerLine),
-    [page.measures, effectiveBarsPerLine]
+    () =>
+      layoutSystems(
+        page.measures,
+        effectiveBarsPerLine,
+        isDesktop ? undefined : { maxBarsPerLine: 2, maxSystemWeight: 8.2 }
+      ),
+    [page.measures, effectiveBarsPerLine, isDesktop]
   );
   const headerHeight = 82;
   const totalHeight = headerHeight + systems.length * SYSTEM_HEIGHT + 44;
@@ -446,17 +461,17 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
       <svg
         ref={svgRef}
         className="score-svg"
-        viewBox={`0 0 ${PAGE_WIDTH} ${totalHeight}`}
+        viewBox={`0 0 ${pageWidth} ${totalHeight}`}
         width="100%"
         role="img"
         aria-label={`Tonbak sheet music: ${page.title}`}
         onClick={() => onClearSelection?.()}
       >
         {/* Warm archival paper background (prints pure white via @media print) */}
-        <rect className="score-paper-bg" x={0} y={0} width={PAGE_WIDTH} height={totalHeight} fill="#fbf7ef" rx={6} />
+        <rect className="score-paper-bg" x={0} y={0} width={pageWidth} height={totalHeight} fill="#fbf7ef" rx={6} />
 
         {/* Header: Persian-style title box on top right + tempo marking on top left */}
-        <g transform="translate(36, 22)">
+        <g transform={`translate(${marginX}, 22)`}>
           {/* Tempo marking */}
           <g transform="translate(4, 34)" fill="#241e18">
             <ellipse cx={6} cy={0} rx={5.2} ry={3.8} transform="rotate(-20 6 0)" />
@@ -474,12 +489,12 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
           </g>
 
           {/* Title box matching Rajabi book header */}
-          <g transform={`translate(${USABLE_WIDTH - 290}, 0)`}>
+          <g transform={`translate(${usableWidth - titleBoxWidth}, 0)`}>
             <rect
               className="score-title-box"
               x={0}
               y={0}
-              width={290}
+              width={titleBoxWidth}
               height={34}
               fill="#f4ede0"
               stroke="#4a3e31"
@@ -487,10 +502,10 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
               rx={2}
             />
             <text
-              x={145}
+              x={titleBoxWidth / 2}
               y={22}
               textAnchor="middle"
-              fontSize="15.5"
+              fontSize={isDesktop ? '15.5' : '14'}
               fontWeight="700"
               fontFamily="'Vazirmatn', 'Cormorant Garamond', serif"
               fill="#241e18"
@@ -498,9 +513,9 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
               {page.title}
             </text>
           </g>
-          {page.subtitle && (
+          {page.subtitle && isDesktop && (
             <text
-              x={USABLE_WIDTH}
+              x={usableWidth}
               y={50}
               textAnchor="end"
               fontSize="11.5"
@@ -518,8 +533,8 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
           const staffY = sysTop + STAFF_Y_OFFSET;
           const isFirstSystem = sysIdx === 0;
           const prefixWidth = isFirstSystem ? 54 : 26;
-          const contentStartX = MARGIN_X + prefixWidth;
-          const contentWidth = USABLE_WIDTH - prefixWidth;
+          const contentStartX = marginX + prefixWidth;
+          const contentWidth = usableWidth - prefixWidth;
           const totalWeight = sys.weights.reduce((a, b) => a + b, 0);
 
           let cursorX = contentStartX;
@@ -528,16 +543,16 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
             <g key={sysIdx} className="score-system">
               {/* Single-line percussion staff */}
               <line
-                x1={MARGIN_X}
+                x1={marginX}
                 y1={staffY}
-                x2={PAGE_WIDTH - MARGIN_X}
+                x2={pageWidth - marginX}
                 y2={staffY}
                 stroke="#2b231b"
                 strokeWidth={1.35}
               />
 
               {/* Percussion Clef || */}
-              <g transform={`translate(${MARGIN_X + 6}, ${staffY})`} stroke="#241e18">
+              <g transform={`translate(${marginX + 6}, ${staffY})`} stroke="#241e18">
                 <line x1={0} y1={-10} x2={0} y2={10} strokeWidth={2.2} />
                 <line x1={4.5} y1={-10} x2={4.5} y2={10} strokeWidth={2.2} />
               </g>
@@ -545,7 +560,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
               {/* Time signature on first system */}
               {isFirstSystem && (
                 <g
-                  transform={`translate(${MARGIN_X + 27}, ${staffY})`}
+                  transform={`translate(${marginX + 27}, ${staffY})`}
                   fill="#241e18"
                   fontFamily="Georgia, serif"
                   fontWeight="700"

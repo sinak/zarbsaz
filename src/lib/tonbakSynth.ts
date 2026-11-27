@@ -36,7 +36,8 @@ export function getQuarterNoteSeconds(
 export function buildPlaybackTimeline(
   page: TonbakPage,
   startMeasure = 0,
-  endMeasure = page.measures.length - 1
+  endMeasure = page.measures.length - 1,
+  startNoteIndex = 0
 ): { events: ScheduledEvent[]; totalDurationSec: number; quarterSec: number } {
   const quarterSec = getQuarterNoteSeconds(page.tempo, page.tempoBeat);
   const events: ScheduledEvent[] = [];
@@ -44,11 +45,14 @@ export function buildPlaybackTimeline(
 
   const first = Math.max(0, Math.min(startMeasure, page.measures.length - 1));
   const last = Math.max(first, Math.min(endMeasure, page.measures.length - 1));
+  const safeStartNote = Math.max(0, Math.floor(startNoteIndex));
 
   for (let mIdx = first; mIdx <= last; mIdx += 1) {
     const resolvedSeq = resolveMeasureSequenceWithOrigin(page.measures, mIdx);
-    for (const { sourceMeasureIndex, notes: resolvedNotes } of resolvedSeq) {
-      for (let nIdx = 0; nIdx < resolvedNotes.length; nIdx += 1) {
+    for (let seqIdx = 0; seqIdx < resolvedSeq.length; seqIdx += 1) {
+      const { sourceMeasureIndex, notes: resolvedNotes } = resolvedSeq[seqIdx];
+      const firstNoteIdx = mIdx === first && seqIdx === 0 ? safeStartNote : 0;
+      for (let nIdx = firstNoteIdx; nIdx < resolvedNotes.length; nIdx += 1) {
         const note = resolvedNotes[nIdx];
         const durSec = getNoteQuarterBeats(note) * quarterSec;
         events.push({
@@ -724,14 +728,20 @@ export class TonbakPlayer {
     if (typeof opts.volume === 'number') this.synth.setVolume(opts.volume);
   }
 
-  public async play(page: TonbakPage, startMeasure = 0, endMeasure = page.measures.length - 1) {
+  public async play(
+    page: TonbakPage,
+    startMeasure = 0,
+    endMeasure = page.measures.length - 1,
+    startNoteIndex = 0
+  ) {
     this.stop(false);
     await this.synth.preloadSamples();
 
     const { events, totalDurationSec, quarterSec } = buildPlaybackTimeline(
       page,
       startMeasure,
-      endMeasure
+      endMeasure,
+      startNoteIndex
     );
     if (events.length === 0) return;
 

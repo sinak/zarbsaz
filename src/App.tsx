@@ -3,19 +3,17 @@ import {
   Play,
   Square,
   Repeat,
-  Volume2,
+  Settings,
   Camera,
   FilePlus2,
   Download,
   Upload,
-  Printer,
   Trash2,
   Bookmark,
   Eye,
   EyeOff,
   Music2,
   Drum,
-  Timer,
   BookOpen,
   BookPlus,
   Share2,
@@ -26,7 +24,6 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
-  Sliders,
 } from 'lucide-react';
 import {
   cloneMeasureWithNewIds,
@@ -65,6 +62,7 @@ import { ShareModal, type ShareTarget } from './components/ShareModal';
 import { SharedView } from './components/SharedView';
 import { SamplePickerModal } from './components/SamplePickerModal';
 import { SessionRecorderBar } from './components/SessionRecorderBar';
+import { SettingsModal } from './components/SettingsModal';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v6';
 const STORAGE_PAGES_KEY = 'zarbsaz_pages_v12';
@@ -219,6 +217,7 @@ export function App() {
   const [ocrOpen, setOcrOpen] = useState(false);
   const [ocrInitialCamera, setOcrInitialCamera] = useState(false);
   const [samplerOpen, setSamplerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [showSourcePhoto, setShowSourcePhoto] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -824,9 +823,23 @@ export function App() {
         return;
       }
 
-      const startM = selectionOnly && selection ? selection.measureStart : 0;
-      const endM =
-        selectionOnly && selection ? selection.measureEnd : activePage.measures.length - 1;
+      let startM = 0;
+      let startNoteIdx = 0;
+      let endM = activePage.measures.length - 1;
+
+      if (selection) {
+        startM = selection.measureStart;
+        if (selectionOnly) {
+          endM = selection.measureEnd;
+        } else if (selection.noteId) {
+          const foundIdx = activePage.measures[startM]?.notes.findIndex(
+            (n) => n.id === selection.noteId
+          );
+          if (foundIdx !== undefined && foundIdx >= 0) {
+            startNoteIdx = foundIdx;
+          }
+        }
+      }
 
       sharedTonbakPlayer.setCallbacks({
         onStep: (measureIndex, sourceMeasureIndex, noteId) =>
@@ -837,7 +850,7 @@ export function App() {
         },
       });
       sharedTonbakPlayer.setOptions({ loop: loopPlayback, metronome: metronomeOn, volume });
-      sharedTonbakPlayer.play(activePage, startM, endM);
+      void sharedTonbakPlayer.play(activePage, startM, endM, startNoteIdx);
     },
     [activePage, isPlaying, selection, loopPlayback, metronomeOn, volume]
   );
@@ -1187,31 +1200,40 @@ export function App() {
           </div>
         </div>
 
-        {/* Tonbak Player Transport */}
+        {/* Compact Tonbak Player Transport */}
         <div className="transport-bar" aria-label="Tonbak audio player">
           <button
             type="button"
             className={`play-hero-btn ${isPlaying ? 'playing' : ''}`}
             onClick={() => handlePlay(false)}
-            title="Play whole page on Tonbak (Space)"
+            title={
+              selection?.noteId
+                ? `Play from selected note in Bar ${selection.measureStart + 1} (Space)`
+                : selection
+                  ? `Play from Bar ${selection.measureStart + 1} (Space)`
+                  : 'Play whole page on Tonbak (Space)'
+            }
           >
             {isPlaying ? <Square size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
-            <span>{isPlaying ? 'Stop' : 'Play'}</span>
+            <span>
+              {isPlaying
+                ? 'Stop'
+                : selection?.noteId
+                  ? `Play (m.${selection.measureStart + 1})`
+                  : 'Play'}
+            </span>
           </button>
 
-          {selection && (
+          {selection && selection.measureEnd > selection.measureStart && (
             <button
               type="button"
-              className="btn-secondary hide-xs"
+              className="btn-secondary hide-sm"
               onClick={() => handlePlay(true)}
-              title="Play selected measure(s) only"
+              title="Play selected measures only"
             >
               <Play size={14} aria-hidden="true" />
               <span>
-                Bars {selection.measureStart + 1}
-                {selection.measureEnd > selection.measureStart
-                  ? `–${selection.measureEnd + 1}`
-                  : ''}
+                Bars {selection.measureStart + 1}–{selection.measureEnd + 1}
               </span>
             </button>
           )}
@@ -1225,17 +1247,6 @@ export function App() {
           >
             <Repeat size={14} aria-hidden="true" />
             <span className="hide-sm">Loop</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-toggle"
-            aria-pressed={metronomeOn}
-            onClick={() => setMetronomeOn((v) => !v)}
-            title="Metronome click"
-          >
-            <Timer size={14} aria-hidden="true" />
-            <span className="hide-sm">Click</span>
           </button>
 
           <div className="slider-control">
@@ -1259,74 +1270,13 @@ export function App() {
               }}
             />
           </div>
-
-          <div className="kit-picker">
-            <label htmlFor="kit-select" className="sr-only">
-              Tonbak sound kit
-            </label>
-            <select
-              id="kit-select"
-              className="kit-select"
-              aria-label="Tonbak sound kit"
-              title={TONBAK_KITS.find((k) => k.id === soundKit)?.description}
-              value={soundKit}
-              onChange={(e) => {
-                const next = e.target.value as TonbakKitId;
-                setSoundKit(next);
-                void sharedTonbakSynth.setKit(next).then(() => {
-                  // Play a quick Tom + Bak preview of the newly selected kit
-                  const now = sharedTonbakSynth.getCurrentTime() + 0.02;
-                  sharedTonbakSynth.triggerStroke('tom', now);
-                  sharedTonbakSynth.triggerStroke('bak_r', now + 0.16);
-                  sharedTonbakSynth.triggerStroke('bak_l', now + 0.3);
-                });
-                const info = TONBAK_KITS.find((k) => k.id === next);
-                announce(`Switched Tonbak kit to ${info?.label}: ${info?.description}`);
-              }}
-            >
-              {TONBAK_KITS.map((k) => (
-                <option key={k.id} value={k.id}>
-                  Kit: {k.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary hide-xs"
-              title="Audition and choose your favorite teacher recordings for each stroke"
-              onClick={() => setSamplerOpen(true)}
-            >
-              <Sliders size={14} aria-hidden="true" />
-              <span>Pick Samples</span>
-            </button>
-          </div>
-
-          <div className="slider-control slider-vol hide-sm">
-            <label htmlFor="volume-slider" className="slider-label" aria-label="Volume">
-              <Volume2 size={15} aria-hidden="true" />
-            </label>
-            <input
-              ref={volumeSliderRef}
-              id="volume-slider"
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(volume * 100)}
-              aria-valuetext={`${Math.round(volume * 100)} percent volume`}
-              onChange={(e) => {
-                const pct = Number(e.target.value);
-                syncSliderProps(e.currentTarget, pct, 0, 100);
-                setVolume(pct / 100);
-              }}
-            />
-          </div>
         </div>
 
-        {/* Top-right Primary Actions: Camera/Import + Account */}
+        {/* Top-right Actions: Import (desktop), Settings, Account */}
         <div className="top-actions">
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary hide-sm"
             onClick={() => {
               setOcrInitialCamera(false);
               setOcrOpen(true);
@@ -1338,18 +1288,19 @@ export function App() {
 
           <button
             type="button"
-            className="btn-secondary hide-sm"
-            aria-label="Print sheet music"
-            onClick={() => window.print()}
-            title="Print sheet music"
+            className="btn-secondary"
+            aria-label="Audio and score settings"
+            title="Sound Kit, Samples, Metronome, Volume & Print"
+            onClick={() => setSettingsOpen(true)}
           >
-            <Printer size={15} aria-hidden="true" />
+            <Settings size={15} aria-hidden="true" />
+            <span className="hide-sm">Settings</span>
           </button>
 
           {user ? (
             <div className="account-pill">
               <User size={14} aria-hidden="true" />
-              <span className="account-name">@{user.username}</span>
+              <span className="account-name hide-xs">@{user.username}</span>
               <button
                 type="button"
                 className="account-logout-btn"
@@ -1367,7 +1318,7 @@ export function App() {
               onClick={() => setAuthModalOpen(true)}
             >
               <User size={14} aria-hidden="true" />
-              <span>Sign In</span>
+              <span className="hide-xs">Sign In</span>
             </button>
           )}
         </div>
@@ -1950,6 +1901,23 @@ export function App() {
       />
 
       {/* Teacher's Tonbak Sample Picker Modal */}
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        soundKit={soundKit}
+        onChangeKit={(next) => {
+          setSoundKit(next);
+          const info = TONBAK_KITS.find((k) => k.id === next);
+          announce(`Switched Tonbak kit to ${info?.label}`);
+        }}
+        metronomeOn={metronomeOn}
+        onToggleMetronome={() => setMetronomeOn((v) => !v)}
+        volume={volume}
+        onChangeVolume={(v) => setVolume(v)}
+        onOpenSamplePicker={() => setSamplerOpen(true)}
+        onPrint={() => window.print()}
+      />
+
       <SamplePickerModal
         open={samplerOpen}
         onClose={() => setSamplerOpen(false)}

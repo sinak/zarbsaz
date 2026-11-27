@@ -137,6 +137,36 @@ describe('Tonbak playback timeline & repeat measure resolution', () => {
     expect(timeline.events[3].sourceMeasureIndex).toBe(1);
     expect(timeline.totalDurationSec).toBeCloseTo(2.0, 5);
   });
+
+  it('starts playback cleanly from a specific selected note index within a measure', () => {
+    const m0: Measure = {
+      id: 'm0',
+      notes: [
+        mkNote('n0', 'tom', 'quarter'),
+        mkNote('n1', 'bak_r', 'quarter'),
+        mkNote('n2', 'pelang', 'quarter', { finger: '2' }),
+      ],
+    };
+    const m1: Measure = { id: 'm1', notes: [mkNote('n3', 'tom', 'half')] };
+    const page: TonbakPage = {
+      id: 'p_start_note',
+      title: 'Start Note Test',
+      timeSignature: { numerator: 3, denominator: 4 },
+      tempo: 120,
+      tempoBeat: 'quarter',
+      measures: [m0, m1],
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    // Start from measure 0, note index 1 ('n1') -> should play n1, n2, n3 starting at t=0
+    const timeline = buildPlaybackTimeline(page, 0, 1, 1);
+    expect(timeline.events.map((e) => e.note.id)).toEqual(['n1', 'n2', 'n3']);
+    expect(timeline.events[0].startSec).toBe(0);
+    expect(timeline.events[1].startSec).toBeCloseTo(0.5, 5);
+    expect(timeline.events[2].startSec).toBeCloseTo(1.0, 5);
+    expect(timeline.totalDurationSec).toBeCloseTo(2.0, 5);
+  });
 });
 
 describe('OCR JSON normalization & copy-paste cloning', () => {
