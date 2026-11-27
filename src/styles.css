@@ -2094,6 +2094,380 @@ select:focus-visible {
   gap: 12px;
 }
 
+/* First-Time Welcome Onboarding Modal & Animations */
+.welcome-dialog {
+  max-width: 500px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.welcome-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 22px 18px;
+  gap: 16px;
+}
+
+.welcome-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.welcome-stage {
+  height: 156px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f7efe2, #ede1ce);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.welcome-anim-score {
+  width: 100%;
+  max-width: 360px;
+}
+
+.welcome-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@keyframes playheadSweep {
+  0% { transform: translateX(0px); opacity: 0.9; }
+  20% { transform: translateX(46px); }
+  40% { transform: translateX(92px); }
+  60% { transform: translateX(138px); }
+  80%, 100% { transform: translateX(198px); opacity: 0.95; }
+}
+
+@keyframes noteBounce {
+  0%, 100% { transform: translateY(0); }
+  12% { transform: translateY(-4px); }
+  24% { transform: translateY(0); }
+}
+
+.anim-playhead {
+  animation: playheadSweep 2.4s ease-in-out infinite;
+}
+
+.anim-note-pulse {
+  animation: noteBounce 2.4s ease-in-out infinite;
+}
+
+/* Slide 2: OCR Scan Beam Animation */
+.welcome-anim-scan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.scan-card {
+  position: relative;
+  width: 112px;
+  height: 118px;
+  background: #fbf7ef;
+  border: 1px solid #c9b9a3;
+  border-radius: 8px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(35, 28, 22, 0.08);
+}
+
+.scan-header-bar {
+  width: 55%;
+  height: 6px;
+  border-radius: 3px;
+  background: #b8a58c;
+  align-self: flex-end;
+}
+
+.scan-staff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px solid #6e5f4f;
+  padding-bottom: 4px;
+}
+
+.scan-staff-row span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #3a2f26;
+}
+
+@keyframes scanBeamMove {
+  0% { top: 0; opacity: 0.95; }
+  50% { top: calc(100% - 6px); opacity: 1; }
+  100% { top: 0; opacity: 0.95; }
+}
+
+.scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, transparent, #d96b27, #f5b971, #d96b27, transparent);
+  box-shadow: 0 0 12px rgba(217, 107, 39, 0.75);
+  animation: scanBeamMove 2.2s ease-in-out infinite;
+}
+
+.scan-arrow {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.scan-result-card {
+  width: 146px;
+  height: 118px;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 6px 16px rgba(156, 59, 30, 0.14);
+}
+
+.scan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 3px 7px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+.scan-mini-notes {
+  display: flex;
+  justify-content: space-around;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.scan-mini-staff {
+  height: 2px;
+  background: #2b231b;
+  border-radius: 2px;
+  margin-bottom: 10px;
+}
+
+/* Slide 3: Compose Animation */
+.welcome-anim-compose {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.compose-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@keyframes pillPop {
+  0%, 100% { transform: scale(1); background: #fff; color: var(--ink); border-color: var(--border-strong); }
+  20% { transform: scale(1.08); background: var(--accent); color: #fff; border-color: var(--accent); }
+  40% { transform: scale(1); background: #fff; color: var(--ink); border-color: var(--border-strong); }
+}
+
+.compose-pill {
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  animation: pillPop 2.8s ease-in-out infinite;
+}
+.compose-pill.p2 { animation-delay: 0.65s; }
+.compose-pill.p3 { animation-delay: 1.3s; }
+.compose-pill.p4 { animation-delay: 1.95s; }
+
+.compose-staff-preview {
+  position: relative;
+  width: 82%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.compose-line {
+  width: 100%;
+  height: 2px;
+  background: #2b231b;
+}
+
+.compose-dots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+@keyframes dotAppear {
+  0%, 15% { transform: scale(0.4); opacity: 0.25; }
+  30%, 85% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.4); opacity: 0.25; }
+}
+
+.c-dot {
+  width: 11px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: rotate(-18deg);
+  animation: dotAppear 2.8s ease-in-out infinite;
+}
+.c-dot.d2 { animation-delay: 0.65s; }
+.c-dot.d3 { animation-delay: 1.3s; }
+.c-dot.d4 { animation-delay: 1.95s; }
+
+.compose-hint-row {
+  display: flex;
+  gap: 8px;
+}
+
+.compose-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+/* Slide 4: Feature Grid */
+.welcome-anim-features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.w-feat-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--accent);
+}
+
+.w-feat-card strong {
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.w-feat-card span {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+.welcome-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.welcome-kicker {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.welcome-copy h2 {
+  margin: 0;
+  font-size: 1.22rem;
+  line-height: 1.28;
+  color: var(--ink);
+}
+
+.welcome-copy p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.welcome-demo-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.welcome-dots {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.welcome-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: #d2c5b3;
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.welcome-dot.active {
+  width: 22px;
+  background: var(--accent);
+}
+
+.welcome-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-playhead,
+  .anim-note-pulse,
+  .scan-beam,
+  .compose-pill,
+  .c-dot {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 540px) {
   .hide-xs {
     display: none !important;

@@ -64,10 +64,12 @@ import { SharedView } from './components/SharedView';
 import { SamplePickerModal } from './components/SamplePickerModal';
 import { SessionRecorderBar } from './components/SessionRecorderBar';
 import { SettingsModal } from './components/SettingsModal';
+import { WelcomeModal } from './components/WelcomeModal';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v6';
 const STORAGE_PAGES_KEY = 'zarbsaz_pages_v12';
 const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v6';
+const STORAGE_INTRO_KEY = 'zarbsaz_seen_intro_v1';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';
 
@@ -219,6 +221,15 @@ export function App() {
   const [ocrInitialCamera, setOcrInitialCamera] = useState(false);
   const [samplerOpen, setSamplerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (parseShareQuery()) return false;
+    try {
+      return !localStorage.getItem(STORAGE_INTRO_KEY);
+    } catch {
+      return false;
+    }
+  });
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [showSourcePhoto, setShowSourcePhoto] = useState(false);
   const [availableBookPhotos, setAvailableBookPhotos] = useState<Set<string>>(() => new Set());
@@ -1975,6 +1986,7 @@ export function App() {
         onChangeVolume={(v) => setVolume(v)}
         onOpenSamplePicker={() => setSamplerOpen(true)}
         onPrint={() => window.print()}
+        onShowIntro={() => setWelcomeOpen(true)}
         pieceReadOnly={isActivePageReadOnly}
         meterValue={`${activePage.timeSignature.numerator}/${activePage.timeSignature.denominator}`}
         onChangeMeter={(val) => {
@@ -1997,6 +2009,22 @@ export function App() {
           if (val === 'custom') return;
           const nextBarsPerLine = val === 'auto' ? undefined : [Number(val)];
           updateActivePage((p) => ({ ...p, barsPerLine: nextBarsPerLine }));
+        }}
+      />
+
+      <WelcomeModal
+        open={welcomeOpen}
+        onClose={() => {
+          setWelcomeOpen(false);
+          try {
+            localStorage.setItem(STORAGE_INTRO_KEY, '1');
+          } catch {
+            // ignore
+          }
+        }}
+        onTryScan={() => {
+          setOcrInitialCamera(false);
+          setOcrOpen(true);
         }}
       />
 

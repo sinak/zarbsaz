@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Settings, X, Sliders, Timer, Volume2, Printer } from 'lucide-react';
+import { Settings, X, Sliders, Timer, Volume2, Printer, HelpCircle } from 'lucide-react';
 import { sharedTonbakSynth, TONBAK_KITS, type TonbakKitId } from '../lib/tonbakSynth';
 
 interface SettingsModalProps {
@@ -13,6 +13,7 @@ interface SettingsModalProps {
   onChangeVolume: (vol: number) => void;
   onOpenSamplePicker: () => void;
   onPrint: () => void;
+  onShowIntro?: () => void;
   /** Optional current piece layout controls (handy on mobile where piece meta controls are tucked away) */
   pieceReadOnly?: boolean;
   meterValue?: string;
@@ -33,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onChangeVolume,
   onOpenSamplePicker,
   onPrint,
+  onShowIntro,
   pieceReadOnly,
   meterValue,
   onChangeMeter,
@@ -226,7 +228,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         )}
 
-        <div className="settings-section">
+        <div className="settings-section" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button
             type="button"
             className="btn-secondary"
@@ -239,6 +241,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <Printer size={15} aria-hidden="true" />
             <span>Print Score (White Background)</span>
           </button>
+          {onShowIntro && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={() => {
+                dialogRef.current?.close();
+                onShowIntro();
+              }}
+            >
+              <HelpCircle size={15} aria-hidden="true" />
+              <span>How ZarbSaz Works (Intro Tour)</span>
+            </button>
+          )}
         </div>
       </div>
     </dialog>
