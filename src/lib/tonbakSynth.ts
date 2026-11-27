@@ -356,17 +356,25 @@ export class TonbakSynth {
         const finger = cascade[i % cascade.length];
         const glissShift =
           options.glissando === 'down'
-            ? 1.24 - phase * 0.36
+            ? 1.38 * Math.pow(0.84 / 1.38, phase)
             : options.glissando
-              ? 0.9 + phase * 0.34
+              ? 0.84 * Math.pow(1.38 / 0.84, phase)
               : 1.0;
+
+        // Real tonbak glissando changes both tension pitch AND brightness as palm presses/releases skin
+        const softenHz =
+          options.glissando === 'down'
+            ? 7200 - phase * 4000
+            : options.glissando
+              ? 3200 + phase * 4000
+              : 4600;
 
         // Trim tail of the final strokes so the roll stops cleanly right at the next beat
         const remainingSec = Math.max(0.055, time + totalDur - t + 0.025);
         this.playRoundRobinSample(ctx, finger.key, t, {
           gain: humanVel * swell * finger.gainBias,
           rate: finger.rateBias * glissShift,
-          softenHz: options.glissando ? 5600 : 4600,
+          softenHz,
           maxDurationSec: Math.min(0.095, remainingSec),
         });
       }
