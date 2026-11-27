@@ -36,7 +36,6 @@ const STROKE_TABS: Array<{
   { key: 'pelang_r', label: 'Cascade R (◠^)', defaultPool: 'cascade', maxPicks: 2 },
   { key: 'pelang_l', label: 'Cascade L (◠v)', defaultPool: 'cascade', maxPicks: 2 },
   { key: 'chap', label: 'Bak Edge (^̄)', defaultPool: 'bak_l', maxPicks: 2 },
-  { key: 'eshareh', label: 'Tom Grace (S)', defaultPool: 'tom', maxPicks: 2 },
 ];
 
 interface SamplePickerModalProps {
