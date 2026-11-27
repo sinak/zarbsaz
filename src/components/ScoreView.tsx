@@ -929,12 +929,22 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                       );
                                     })}
 
-                                  {/* Tremolo slashes for Riz */}
-                                  {(note.tremolo || note.stroke === 'riz') && hasStem && (
+                                  {/* Tremolo slashes for Riz (on stem, or centered above whole notehead) */}
+                                  {(note.tremolo || note.stroke === 'riz') && (
                                     <g stroke={inkColor} strokeWidth={1.8} strokeLinecap="round">
-                                      <line x1={stemX - 4.5} y1={staffY - 11} x2={stemX + 4.5} y2={staffY - 16} />
-                                      <line x1={stemX - 4.5} y1={staffY - 16} x2={stemX + 4.5} y2={staffY - 21} />
-                                      <line x1={stemX - 4.5} y1={staffY - 21} x2={stemX + 4.5} y2={staffY - 26} />
+                                      {hasStem ? (
+                                        <>
+                                          <line x1={stemX - 4.5} y1={staffY - 11} x2={stemX + 4.5} y2={staffY - 16} />
+                                          <line x1={stemX - 4.5} y1={staffY - 16} x2={stemX + 4.5} y2={staffY - 21} />
+                                          <line x1={stemX - 4.5} y1={staffY - 21} x2={stemX + 4.5} y2={staffY - 26} />
+                                        </>
+                                      ) : (
+                                        <>
+                                          <line x1={nx - 4.5} y1={staffY - 13} x2={nx + 4.5} y2={staffY - 18} />
+                                          <line x1={nx - 4.5} y1={staffY - 18} x2={nx + 4.5} y2={staffY - 23} />
+                                          <line x1={nx - 4.5} y1={staffY - 23} x2={nx + 4.5} y2={staffY - 28} />
+                                        </>
+                                      )}
                                     </g>
                                   )}
 

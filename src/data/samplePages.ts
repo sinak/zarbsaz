@@ -1595,7 +1595,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('rest', 'eighth'),
         n('rest', 'quarter'),
@@ -1612,7 +1612,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('rest', 'eighth'),
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -1623,7 +1623,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('rest', 'eighth'),
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -1649,7 +1649,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('pelang', 'eighth', { finger: '2' }),
         n('rest', 'quarter'),
@@ -1672,7 +1672,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'whole', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('pelang', 'eighth', { finger: '2' }),
       ]),
@@ -1690,7 +1690,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('pelang', 'eighth', { finger: '2' }),
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
@@ -1699,7 +1699,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'whole', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'eighth'),
         n('pelang', 'eighth', { finger: '2' }),
       ]),
@@ -1716,7 +1716,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('pelang', 'eighth', { finger: '3' }),
@@ -1726,7 +1726,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'whole', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('pelang', 'eighth', { finger: '3' }),
@@ -1746,7 +1746,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('pelang', 'eighth', { finger: '3' }),
@@ -1756,7 +1756,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'whole', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('pelang', 'eighth', { finger: '3' }),
@@ -1775,7 +1775,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('bak_r', 'sixteenth'),
@@ -1808,7 +1808,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'quarter', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'half', { dotted: true, tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('bak_r', 'sixteenth'),
@@ -1819,7 +1819,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
       m([
         n('tom', 'eighth', { graceNotes: PELANG_PAIR }),
         n('pelang', 'eighth', { finger: '2' }),
-        n('riz', 'half', { tremolo: true, graceNotes: ESHAREH_GRACE }),
+        n('riz', 'whole', { tremolo: true, graceNotes: ESHAREH_GRACE }),
         n('bak_r', 'sixteenth'),
         n('pelang', 'sixteenth', { finger: '2' }),
         n('bak_r', 'sixteenth'),
