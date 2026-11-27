@@ -380,7 +380,8 @@ export function App() {
             tempo: updated.tempo,
             tempoBeat: updated.tempoBeat,
             measures: updated.measures,
-          })
+            barsPerLine: updated.barsPerLine ?? null,
+          } as Partial<TonbakPage>)
           .catch(() => {
             // ignore transient errors
           });
@@ -1772,6 +1773,42 @@ export function App() {
                   <option value="5/8">5/8</option>
                   <option value="7/8">7/8</option>
                   <option value="9/8">9/8</option>
+                  <option value="6/4">6/4</option>
+                </select>
+              </label>
+
+              <label className="meta-field">
+                <span>Bars/Line</span>
+                <select
+                  disabled={isActivePageReadOnly}
+                  aria-label="Bars per line"
+                  value={
+                    !activePage.barsPerLine || activePage.barsPerLine.length === 0
+                      ? 'auto'
+                      : activePage.barsPerLine.length === 1
+                        ? String(activePage.barsPerLine[0])
+                        : 'custom'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'custom') return;
+                    const nextBarsPerLine = val === 'auto' ? undefined : [Number(val)];
+                    updateActivePage((p) => ({
+                      ...p,
+                      barsPerLine: nextBarsPerLine,
+                    }));
+                  }}
+                >
+                  <option value="auto">Auto</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  {activePage.barsPerLine && activePage.barsPerLine.length > 1 && (
+                    <option value="custom">Book layout</option>
+                  )}
                 </select>
               </label>
 

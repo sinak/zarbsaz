@@ -337,7 +337,25 @@ export function layoutSystems(
   const systems: Array<{ measureIndices: number[]; weights: number[] }> = [];
   let cursor = 0;
 
-  if (barsPerLine && barsPerLine.length > 0) {
+  if (barsPerLine && barsPerLine.length === 1) {
+    // Uniform user-chosen "N bars per line" repeats across the entire piece
+    const perLine = Math.max(1, Math.min(12, Math.round(barsPerLine[0])));
+    while (cursor < measures.length) {
+      const take = Math.min(perLine, measures.length - cursor);
+      const indices: number[] = [];
+      const weights: number[] = [];
+      for (let k = 0; k < take; k += 1) {
+        const idx = cursor + k;
+        indices.push(idx);
+        weights.push(measureWeight(measures[idx]));
+      }
+      systems.push({ measureIndices: indices, weights });
+      cursor += take;
+    }
+    return systems;
+  }
+
+  if (barsPerLine && barsPerLine.length > 1) {
     for (const count of barsPerLine) {
       if (cursor >= measures.length) break;
       const take = Math.max(1, Math.min(count, measures.length - cursor));
@@ -408,7 +426,11 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  const effectiveBarsPerLine = isDesktop ? page.barsPerLine : undefined;
+  const effectiveBarsPerLine = isDesktop
+    ? page.barsPerLine
+    : page.barsPerLine?.length === 1 && page.barsPerLine[0] <= 4
+      ? page.barsPerLine
+      : undefined;
   const systems = useMemo(
     () => layoutSystems(page.measures, effectiveBarsPerLine),
     [page.measures, effectiveBarsPerLine]

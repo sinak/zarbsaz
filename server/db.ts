@@ -492,6 +492,7 @@ export class ZarbSazStore {
       tempo: number;
       tempoBeat: 'quarter' | 'dotted-quarter';
       measures: unknown[];
+      barsPerLine: number[] | null;
       sourceImage: string;
       isPublic: boolean;
     }>
@@ -509,13 +510,22 @@ export class ZarbSazStore {
       }
     }
 
+    const nextBarsPerLineJson =
+      patch.barsPerLine !== undefined
+        ? patch.barsPerLine
+          ? JSON.stringify(patch.barsPerLine)
+          : null
+        : existing.barsPerLine
+          ? JSON.stringify(existing.barsPerLine)
+          : null;
+
     const now = Date.now();
     this.db
       .prepare(
         `UPDATE pieces SET
           book_id = ?, sort_order = ?, title = ?, subtitle = ?,
           time_sig_num = ?, time_sig_den = ?, tempo = ?, tempo_beat = ?,
-          measures_json = ?, source_image = ?, is_public = ?, updated_at = ?
+          measures_json = ?, bars_per_line_json = ?, source_image = ?, is_public = ?, updated_at = ?
          WHERE id = ? AND owner_id = ?`
       )
       .run(
@@ -528,6 +538,7 @@ export class ZarbSazStore {
         patch.tempo !== undefined ? patch.tempo : existing.tempo,
         patch.tempoBeat !== undefined ? patch.tempoBeat : existing.tempoBeat,
         patch.measures !== undefined ? JSON.stringify(patch.measures) : JSON.stringify(existing.measures),
+        nextBarsPerLineJson,
         patch.sourceImage !== undefined ? patch.sourceImage : existing.sourceImage ?? null,
         patch.isPublic !== undefined ? (patch.isPublic ? 1 : 0) : existing.isPublic ? 1 : 0,
         now,

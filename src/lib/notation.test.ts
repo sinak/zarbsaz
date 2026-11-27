@@ -199,6 +199,14 @@ describe('OCR JSON normalization & copy-paste cloning', () => {
       [5, 6, 7, 8],
       [9, 10],
     ]);
+
+    // Uniform user-chosen [3] repeats across every line of the piece
+    const uniform = layoutSystems(measures.slice(0, 8), [3]);
+    expect(uniform.map((s) => s.measureIndices)).toEqual([
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7],
+    ]);
   });
 
   it('builds and parses deep-link URLs for pages, single bars, bar ranges, and specific notes', () => {
