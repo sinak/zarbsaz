@@ -269,6 +269,67 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
 
         {feedback && <div className="ocr-success">{feedback}</div>}
 
+        {/* Live Audition of Dynamically Generated Riz & Glissando Rolls */}
+        <div className="sampler-roll-preview">
+          <span className="sampler-roll-label">Test Generated Rolls (Teacher&apos;s Kit):</span>
+          <div className="sampler-roll-btns">
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('riz', sharedTonbakSynth.getCurrentTime() + 0.02, {
+                    durationSec: 0.24,
+                  });
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Riz (Short)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('riz', sharedTonbakSynth.getCurrentTime() + 0.02, {
+                    durationSec: 0.72,
+                  });
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Riz (Long)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('riz', sharedTonbakSynth.getCurrentTime() + 0.02, {
+                    durationSec: 0.56,
+                    glissando: 'up',
+                  });
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Gliss Up (↗g)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('riz', sharedTonbakSynth.getCurrentTime() + 0.02, {
+                    durationSec: 0.56,
+                    glissando: 'down',
+                  });
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Gliss Down (↘g)
+            </button>
+          </div>
+        </div>
+
         <footer className="ocr-dialog-footer">
           <button
             type="button"

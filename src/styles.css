@@ -445,6 +445,30 @@ select:focus-visible {
   color: #fff;
 }
 
+.sampler-roll-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sampler-roll-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.sampler-roll-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .kit-select {
   min-block-size: max(34px, var(--target-size));
   padding: 4px 10px;
