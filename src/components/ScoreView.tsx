@@ -40,6 +40,7 @@ const BEAM_GAP = 6.2;
 function StrokeGlyph({
   stroke,
   finger,
+  glissando,
   x,
   y,
   color,
@@ -47,6 +48,7 @@ function StrokeGlyph({
 }: {
   stroke: StrokeType;
   finger?: string;
+  glissando?: 'up' | 'down' | boolean;
   x: number;
   y: number;
   color: string;
@@ -154,7 +156,7 @@ function StrokeGlyph({
       )}
 
       {stroke === 'riz' && (
-        // ^v with curved arc above (Riz / roll)
+        // ^v with curved arc above (or + for downward gliss, - for upward gliss as in Bahman Rajabi)
         <g>
           <path
             d="M -7.5 1 L -3.8 -9 L 0 1"
@@ -170,7 +172,16 @@ function StrokeGlyph({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <path d="M -9 -12.5 Q 0.5 -20 10 -12.5" fill="none" strokeWidth="1.6" strokeLinecap="round" />
+          {glissando === 'down' ? (
+            <g strokeWidth="1.6" strokeLinecap="round">
+              <line x1={-3.5} y1={-15.5} x2={4.5} y2={-15.5} />
+              <line x1={0.5} y1={-19.5} x2={0.5} y2={-11.5} />
+            </g>
+          ) : glissando === 'up' || glissando === true ? (
+            <line x1={-4.5} y1={-15} x2={5.5} y2={-15} strokeWidth="1.7" strokeLinecap="round" />
+          ) : (
+            <path d="M -9 -12.5 Q 0.5 -20 10 -12.5" fill="none" strokeWidth="1.6" strokeLinecap="round" />
+          )}
         </g>
       )}
 
@@ -809,20 +820,58 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                                     </g>
                                   )}
 
-                                  {/* Optional glissando wavy line */}
+                                  {/* Directional Glissando wavy line + 'g' (Bahman Rajabi notation) */}
                                   {note.glissando && (
-                                    <path
-                                      d={`M ${nx + 9} ${staffY - 10} q 4 -4 8 0 t 8 0 t 8 0`}
-                                      fill="none"
-                                      stroke={inkColor}
-                                      strokeWidth={1.3}
-                                    />
+                                    <g>
+                                      {note.glissando === 'down' ? (
+                                        <>
+                                          <path
+                                            d={`M ${nx + 8} ${staffY - 36} q 4 4 7 2 t 7 4 t 7 4 t 7 4 t 7 4`}
+                                            fill="none"
+                                            stroke={inkColor}
+                                            strokeWidth={1.6}
+                                            strokeLinecap="round"
+                                          />
+                                          <text
+                                            x={nx + 33}
+                                            y={staffY - 4}
+                                            fontSize="11.5"
+                                            fontFamily="'Inter', sans-serif"
+                                            fontWeight="600"
+                                            fill={inkColor}
+                                          >
+                                            g
+                                          </text>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <path
+                                            d={`M ${nx + 8} ${staffY - 12} q 4 -4 7 -2 t 7 -4 t 7 -4 t 7 -4 t 7 -4`}
+                                            fill="none"
+                                            stroke={inkColor}
+                                            strokeWidth={1.6}
+                                            strokeLinecap="round"
+                                          />
+                                          <text
+                                            x={nx + 27}
+                                            y={staffY - 4}
+                                            fontSize="11.5"
+                                            fontFamily="'Inter', sans-serif"
+                                            fontWeight="600"
+                                            fill={inkColor}
+                                          >
+                                            g
+                                          </text>
+                                        </>
+                                      )}
+                                    </g>
                                   )}
 
                                   {/* Tonbak stroke symbol above stem */}
                                   <StrokeGlyph
                                     stroke={note.stroke}
                                     finger={note.finger}
+                                    glissando={note.glissando}
                                     x={nx}
                                     y={stemTopY - 11}
                                     color={symbolColor}

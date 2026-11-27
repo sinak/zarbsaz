@@ -36,6 +36,7 @@ import {
   type ClipboardPayload,
   type Duration,
   type FingerMark,
+  type GlissandoDirection,
   type Measure,
   type SavedSnippet,
   type StrokeType,
@@ -59,9 +60,9 @@ import { AuthModal } from './components/AuthModal';
 import { ShareModal, type ShareTarget } from './components/ShareModal';
 import { SharedView } from './components/SharedView';
 
-const STORAGE_BOOKS_KEY = 'zarbsaz_books_v3';
-const STORAGE_PAGES_KEY = 'zarbsaz_pages_v3';
-const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v3';
+const STORAGE_BOOKS_KEY = 'zarbsaz_books_v4';
+const STORAGE_PAGES_KEY = 'zarbsaz_pages_v4';
+const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v4';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';
 
@@ -1739,6 +1740,14 @@ export function App() {
                 ...n,
                 tremolo: !n.tremolo,
                 stroke: !n.tremolo ? 'riz' : n.stroke === 'riz' ? 'bak_r' : n.stroke,
+              }))
+            }
+            onCycleGlissando={(dir: GlissandoDirection | undefined) =>
+              mutateSelectedNote((n) => ({
+                ...n,
+                glissando: dir,
+                tremolo: dir ? true : n.tremolo,
+                stroke: dir ? 'riz' : n.stroke,
               }))
             }
             onTogglePelangGrace={() =>

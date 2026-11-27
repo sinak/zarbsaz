@@ -308,7 +308,7 @@ export class TonbakSynth {
       velocity?: number;
       finger?: string;
       durationSec?: number;
-      glissando?: boolean;
+      glissando?: 'up' | 'down' | boolean;
     } = {}
   ) {
     if (stroke === 'rest') return;
@@ -333,9 +333,15 @@ export class TonbakSynth {
         const src = ctx.createBufferSource();
         src.buffer = buf;
         if (options.glissando) {
-          // Gently time-fit the real glissando slide to the note's exact duration
-          const rate = Math.max(0.72, Math.min(1.45, buf.duration / totalDur));
-          src.playbackRate.setValueAtTime(rate, time);
+          // Gently time-fit and sweep pitch direction (downward slides high->low, upward slides low->high)
+          const baseRate = Math.max(0.72, Math.min(1.45, buf.duration / totalDur));
+          if (options.glissando === 'down') {
+            src.playbackRate.setValueAtTime(baseRate * 1.18, time);
+            src.playbackRate.exponentialRampToValueAtTime(baseRate * 0.86, time + totalDur);
+          } else {
+            src.playbackRate.setValueAtTime(baseRate * 0.92, time);
+            src.playbackRate.exponentialRampToValueAtTime(baseRate * 1.16, time + totalDur);
+          }
         } else {
           // Loop the real Riz roll seamlessly if the note is longer than the clip
           src.loop = totalDur > buf.duration;
@@ -366,7 +372,12 @@ export class TonbakSynth {
         const phase = i / Math.max(1, count - 1);
         const swell = 0.62 + 0.34 * Math.sin(phase * Math.PI);
         const key = cascade[i % cascade.length];
-        const glissRate = options.glissando ? 1 + phase * 0.28 : 1;
+        const glissRate =
+          options.glissando === 'down'
+            ? 1.24 - phase * 0.3
+            : options.glissando
+              ? 1 + phase * 0.28
+              : 1;
         this.playRoundRobinSample(ctx, key, t, {
           gain: humanVel * swell * (key === 'eshareh' ? 0.92 : 0.78),
           rate: glissRate,

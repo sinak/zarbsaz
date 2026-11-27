@@ -24,6 +24,8 @@ export interface GraceNote {
   finger?: FingerMark;
 }
 
+export type GlissandoDirection = 'up' | 'down';
+
 export interface TonbakNote {
   id: string;
   stroke: StrokeType;
@@ -31,7 +33,7 @@ export interface TonbakNote {
   dotted?: boolean;
   finger?: FingerMark;
   tremolo?: boolean;
-  glissando?: boolean;
+  glissando?: GlissandoDirection | boolean;
   accent?: boolean;
   graceNotes?: GraceNote[];
 }
@@ -381,7 +383,12 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
             dotted: Boolean(n.dotted),
             finger,
             tremolo: Boolean(n.tremolo) || stroke === 'riz',
-            glissando: Boolean(n.glissando),
+            glissando:
+              n.glissando === 'up' || n.glissando === 'down'
+                ? n.glissando
+                : n.glissando
+                  ? 'up'
+                  : undefined,
             accent: Boolean(n.accent),
             graceNotes: graceNotes && graceNotes.length > 0 ? graceNotes : undefined,
           };

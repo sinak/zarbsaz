@@ -16,6 +16,7 @@ import {
   type ClipboardPayload,
   type Duration,
   type FingerMark,
+  type GlissandoDirection,
   type StrokeType,
   type TonbakNote,
 } from '../types/notation';
@@ -34,6 +35,7 @@ interface EditorToolbarProps {
   onSelectDuration: (duration: Duration) => void;
   onToggleDotted: () => void;
   onToggleTremolo: () => void;
+  onCycleGlissando: (dir: GlissandoDirection | undefined) => void;
   onTogglePelangGrace: () => void;
   onCycleFinger: (finger: FingerMark | undefined) => void;
   onInsertNote: () => void;
@@ -82,6 +84,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onSelectDuration,
   onToggleDotted,
   onToggleTremolo,
+  onCycleGlissando,
   onTogglePelangGrace,
   onCycleFinger,
   onInsertNote,
@@ -266,6 +269,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             onClick={() => selectedNote && onToggleTremolo()}
           >
             Riz ≋
+          </button>
+          <button
+            type="button"
+            className="tb-btn"
+            aria-pressed={Boolean(selectedNote?.glissando)}
+            aria-disabled={!selectedNote ? 'true' : undefined}
+            title="Cycle Glissando direction (Off → Up ↗ → Down ↘)"
+            onClick={() => {
+              if (!selectedNote) return;
+              const cur =
+                selectedNote.glissando === true ? 'up' : selectedNote.glissando || undefined;
+              const next: GlissandoDirection | undefined =
+                cur === undefined ? 'up' : cur === 'up' ? 'down' : undefined;
+              onCycleGlissando(next);
+            }}
+          >
+            Gliss:{' '}
+            {selectedNote?.glissando === 'down'
+              ? '↘g'
+              : selectedNote?.glissando
+                ? '↗g'
+                : '—'}
           </button>
           <button
             type="button"
