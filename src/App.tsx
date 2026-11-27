@@ -62,9 +62,10 @@ import { AuthModal } from './components/AuthModal';
 import { ShareModal, type ShareTarget } from './components/ShareModal';
 import { SharedView } from './components/SharedView';
 import { SamplePickerModal } from './components/SamplePickerModal';
+import { SessionRecorderBar } from './components/SessionRecorderBar';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v6';
-const STORAGE_PAGES_KEY = 'zarbsaz_pages_v7';
+const STORAGE_PAGES_KEY = 'zarbsaz_pages_v8';
 const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v6';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';
@@ -87,7 +88,7 @@ function createGuestBooks(): TonbakBook[] {
 function createGuestPages(): TonbakPage[] {
   return SAMPLE_PAGES.map((p, idx) => ({
     ...p,
-    bookId: p.id === 'my-composition-1' ? null : DEFAULT_BOOK_ID,
+    bookId: p.id === 'my-composition-1' || p.id === 'sample-recording-sheet' ? null : DEFAULT_BOOK_ID,
     sortOrder: idx,
   }));
 }
@@ -1861,6 +1862,7 @@ export function App() {
             )}
 
             <div className="score-scroll-area" tabIndex={0} role="region" aria-label="Sheet music score">
+              {activePage.id === 'sample-recording-sheet' && <SessionRecorderBar />}
               <ScoreView
                 page={activePage}
                 selection={selection}

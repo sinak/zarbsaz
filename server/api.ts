@@ -432,6 +432,33 @@ export function createApiMiddleware(workspaceRoot: string, store: ZarbSazStore) 
         return sendJson(res, 200, { ok: true, stroke, bytes: buf.length });
       }
 
+      // --- Save Full-Sheet Mic Recording Session to /data/ (gitignored) ---
+      if (req.method === 'POST' && pathname === '/api/kit-recording') {
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk: Buffer) => chunks.push(chunk));
+          req.on('end', () => resolve());
+          req.on('error', reject);
+        });
+        const rawBuf = Buffer.concat(chunks);
+        if (rawBuf.length < 44) {
+          return sendJson(res, 400, { error: 'Empty or invalid audio upload' });
+        }
+        const rawName = url.searchParams.get('filename') || 'user_tonbak_session.wav';
+        const ext = path.extname(rawName).toLowerCase();
+        const safeExt = /^\.(wav|m4a|mp3|webm|ogg|aac)$/.test(ext) ? ext : '.wav';
+        const outDir = path.join(workspaceRoot, 'data');
+        fs.mkdirSync(outDir, { recursive: true });
+        const fileName = `user_tonbak_session${safeExt}`;
+        const outPath = path.join(outDir, fileName);
+        fs.writeFileSync(outPath, rawBuf);
+        return sendJson(res, 200, {
+          ok: true,
+          path: `data/${fileName}`,
+          bytes: rawBuf.length,
+        });
+      }
+
       // --- OCR Status & Vision OCR ---
       if (req.method === 'GET' && pathname === '/api/ocr-status') {
         return sendJson(res, 200, {

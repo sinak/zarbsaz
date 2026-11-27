@@ -1828,6 +1828,123 @@ export const SAMPLE_PAGES: TonbakPage[] = [
     ],
   },
   {
+    id: 'sample-recording-sheet',
+    title: 'صفحه ضبط صدا — Sample Recording Sheet',
+    subtitle: 'Play slowly in order (~1–2s silence after each hit, no metronome) • 12 bars covering every Tonbak stroke',
+    timeSignature: { numerator: 6, denominator: 4 },
+    tempo: 60,
+    tempoBeat: 'quarter',
+    barsPerLine: [2, 2, 2, 2, 2, 2],
+    createdAt: now + 1000,
+    updatedAt: now + 1000,
+    measures: [
+      // Bar 1: Tom (؟) x 3
+      m([
+        n('tom', 'quarter'),
+        n('rest', 'quarter'),
+        n('tom', 'quarter'),
+        n('rest', 'quarter'),
+        n('tom', 'quarter'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 2: Bak R (^) x 3
+      m([
+        n('bak_r', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_r', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_r', 'quarter'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 3: Bak R Center (^+) x 3
+      m([
+        n('bak_r', 'quarter', { placement: 'center' }),
+        n('rest', 'quarter'),
+        n('bak_r', 'quarter', { placement: 'center' }),
+        n('rest', 'quarter'),
+        n('bak_r', 'quarter', { placement: 'center' }),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 4: Bak R Edge (^̄) x 3
+      m([
+        n('chap', 'quarter'),
+        n('rest', 'quarter'),
+        n('chap', 'quarter'),
+        n('rest', 'quarter'),
+        n('chap', 'quarter'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 5: Bak L (v, no dot) x 3
+      m([
+        n('bak_l', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_l', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_l', 'quarter'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 6: Bak L 2-Finger Center (v=) x 3
+      m([
+        n('bak_l', 'quarter', { finger: '=' }),
+        n('rest', 'quarter'),
+        n('bak_l', 'quarter', { finger: '=' }),
+        n('rest', 'quarter'),
+        n('bak_l', 'quarter', { finger: '=' }),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 7: Pelang L Ring (v̇²) x 3
+      m([
+        n('pelang', 'quarter', { finger: '2' }),
+        n('rest', 'quarter'),
+        n('pelang', 'quarter', { finger: '2' }),
+        n('rest', 'quarter'),
+        n('pelang', 'quarter', { finger: '2' }),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 8: Pelang L Pinky (v̇¹) & Middle (v̇³) x 3
+      m([
+        n('pelang', 'quarter', { finger: '1' }),
+        n('rest', 'quarter'),
+        n('pelang', 'quarter', { finger: '3' }),
+        n('rest', 'quarter'),
+        n('pelang', 'quarter', { finger: '3' }),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 9: Simultaneous Bak R + Pelang L (×̇) x 3
+      m([
+        n('bak_pelang', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_pelang', 'quarter'),
+        n('rest', 'quarter'),
+        n('bak_pelang', 'quarter'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 10: Right-Hand 4-Finger Cascade (◠^) x 2
+      m([
+        n('pelang_r', 'half'),
+        n('rest', 'quarter'),
+        n('pelang_r', 'half'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 11: Left-Hand 4-Finger Cascade (◠v) x 2
+      m([
+        n('pelang_l', 'half'),
+        n('rest', 'quarter'),
+        n('pelang_l', 'half'),
+        n('rest', 'quarter'),
+      ]),
+      // Bar 12: Three Riz Styles (Edge ^v, Bak+Pelang ^v̇, Full 4-Finger ◠^v)
+      m([
+        n('riz', 'quarter', { tremolo: true, rizStyle: 'edge' }),
+        n('rest', 'quarter'),
+        n('riz', 'quarter', { tremolo: true, rizStyle: 'pelang' }),
+        n('rest', 'quarter'),
+        n('riz', 'quarter', { tremolo: true, rizStyle: 'full' }),
+        n('rest', 'quarter'),
+      ]),
+    ],
+  },
+  {
     id: 'my-composition-1',
     title: 'قطعه جدید — My Tonbak Piece',
     subtitle: 'Scratchpad • Copy & paste sections from any page here',
