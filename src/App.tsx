@@ -438,7 +438,7 @@ export function App() {
         setActiveStroke(note.stroke);
         setActiveDuration(note.duration);
         const quarterSec = getQuarterNoteSeconds(activePage.tempo, activePage.tempoBeat);
-        const noteDurSec = Math.max(0.18, Math.min(1.8, getNoteQuarterBeats(note) * quarterSec));
+        const noteDurSec = Math.max(0.18, Math.min(3.0, getNoteQuarterBeats(note) * quarterSec));
         // Reserve enough lookahead so preceding grace notes (S Tom, Dorrab ◠^◠v, or 4-note 1-2-3-=)
         // play in full before the main note instead of clamping to `now`
         const graceLeadSec = note.graceNotes && note.graceNotes.length > 0 ? 0.18 : 0.01;

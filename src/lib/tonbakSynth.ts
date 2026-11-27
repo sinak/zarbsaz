@@ -355,6 +355,89 @@ export class TonbakSynth {
     return true;
   }
 
+  /**
+   * Play a real recorded Riz roll continuously for ANY duration (short 16th/8th up to 4-beat whole note)
+   * using equal-power crossfaded sustain looping over the steady-state body of the recording.
+   */
+  private playSustainedRoll(
+    ctx: AudioContext,
+    key: SampleKey,
+    time: number,
+    totalDur: number,
+    gain: number
+  ): boolean {
+    const kitMap = this.kitCache.get(this.activeKit);
+    const list = kitMap?.get(key);
+    if (!list || list.length === 0 || !this.masterBus) return false;
+
+    const buf = list[0];
+    const bufDur = buf.duration;
+    if (bufDur < 0.25) return false;
+
+    const loopStart = Math.min(0.14, bufDur * 0.15);
+    const loopEnd = Math.max(loopStart + 0.25, bufDur - 0.08);
+    const xfade = Math.min(0.12, (loopEnd - loopStart) * 0.28);
+    const endTime = time + totalDur;
+    const peakGain = Math.max(0.02, gain);
+
+    // Short roll that fits completely inside one buffer pass: play directly with clean release
+    if (totalDur <= loopEnd) {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(peakGain, time);
+      const fadeStart = Math.max(time + 0.015, endTime - 0.035);
+      g.gain.setValueAtTime(peakGain, fadeStart);
+      g.gain.linearRampToValueAtTime(0.0005, endTime + 0.01);
+      src.connect(g).connect(this.masterBus);
+      src.start(time, 0, Math.min(bufDur, totalDur + 0.02));
+      return true;
+    }
+
+    // Longer roll (e.g. half, dotted half, whole note): seamlessly crossfade steady-state segments
+    let cursor = time;
+    let segIdx = 0;
+    while (cursor < endTime - 0.005 && segIdx < 16) {
+      const isFirst = segIdx === 0;
+      const offset = isFirst ? 0 : loopStart;
+      const availDur = loopEnd - offset;
+      const remaining = endTime - cursor;
+      const isLast = remaining <= availDur;
+      const segDur = isLast ? remaining + 0.015 : availDur;
+
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      // Subtle ±0.8% rate variation on looped segments prevents any mechanical phasing
+      src.playbackRate.setValueAtTime(isFirst ? 1.0 : 0.992 + (segIdx % 3) * 0.008, cursor);
+
+      const g = ctx.createGain();
+      if (isFirst) {
+        g.gain.setValueAtTime(peakGain, cursor);
+      } else {
+        g.gain.setValueAtTime(0.0005, cursor);
+        g.gain.linearRampToValueAtTime(peakGain, cursor + xfade);
+      }
+
+      if (isLast) {
+        const fadeStart = Math.max(cursor + (isFirst ? 0.015 : xfade), endTime - 0.035);
+        g.gain.setValueAtTime(peakGain, fadeStart);
+        g.gain.linearRampToValueAtTime(0.0005, endTime + 0.015);
+      } else {
+        const fadeOutStart = cursor + availDur - xfade;
+        g.gain.setValueAtTime(peakGain, fadeOutStart);
+        g.gain.linearRampToValueAtTime(0.0005, cursor + availDur);
+      }
+
+      src.connect(g).connect(this.masterBus);
+      src.start(cursor, offset, Math.min(bufDur - offset, segDur + 0.01));
+
+      if (isLast) break;
+      cursor += availDur - xfade;
+      segIdx += 1;
+    }
+    return true;
+  }
+
   /** Trigger a single tonbak stroke at `time` (AudioContext seconds). */
   public triggerStroke(
     stroke: StrokeType,
@@ -380,28 +463,11 @@ export class TonbakSynth {
       const rizStyle = options.rizStyle ?? 'full';
 
       // When using a kit with real recorded Riz rolls (e.g. My Tonbak) and no glissando sweep,
-      // play the authentic recorded Riz trimmed cleanly to the exact note duration!
-      // For very long rolls (> 0.95s), smoothly overlap a second take so it never cuts out early.
+      // play the authentic recorded Riz seamlessly for ANY duration via crossfaded sustain looping!
       if (!options.glissando) {
         const rizKey: SampleKey =
           rizStyle === 'edge' ? 'riz_edge' : rizStyle === 'pelang' ? 'riz_pelang' : 'riz_full';
-        const firstDur = Math.min(totalDur + 0.03, 0.95);
-        if (
-          this.playRoundRobinSample(ctx, rizKey, time, {
-            gain: humanVel * 0.96,
-            rate: 1.0,
-            maxDurationSec: firstDur,
-          })
-        ) {
-          if (totalDur > 0.92) {
-            const overlapStart = time + 0.82;
-            const remainDur = Math.max(0.15, time + totalDur - overlapStart + 0.03);
-            this.playRoundRobinSample(ctx, rizKey, overlapStart, {
-              gain: humanVel * 0.92,
-              rate: 1.01,
-              maxDurationSec: Math.min(remainDur, 0.95),
-            });
-          }
+        if (this.playSustainedRoll(ctx, rizKey, time, totalDur, humanVel * 0.96)) {
           return;
         }
       }
