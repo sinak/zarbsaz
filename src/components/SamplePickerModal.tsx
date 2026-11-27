@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Check, X, Sliders, Volume2 } from 'lucide-react';
+import { Play, Check, X, Sliders, Volume2, Mic, Square } from 'lucide-react';
 import { sharedTonbakSynth } from '../lib/tonbakSynth';
+import { bytesToBase64, trimAndEncodeDrumWav } from '../lib/wavEncoder';
 
 interface CandidateItem {
   file: string;
@@ -57,6 +58,15 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   const [playingFile, setPlayingFile] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Built-in Mic Recorder state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedWavUrl, setRecordedWavUrl] = useState<string | null>(null);
+  const [recordedWavBase64, setRecordedWavBase64] = useState<string | null>(null);
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const mediaRecRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const recStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -122,6 +132,110 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   };
 
   const totalPickedStrokes = Object.values(selected).filter((v) => v.length > 0).length;
+
+  const stopMicRecording = () => {
+    if (mediaRecRef.current && mediaRecRef.current.state !== 'inactive') {
+      mediaRecRef.current.stop();
+    }
+    recStreamRef.current?.getTracks().forEach((t) => t.stop());
+    recStreamRef.current = null;
+    setIsRecording(false);
+  };
+
+  const startMicRecording = async () => {
+    setRecordError(null);
+    setFeedback(null);
+    if (recordedWavUrl) {
+      URL.revokeObjectURL(recordedWavUrl);
+      setRecordedWavUrl(null);
+      setRecordedWavBase64(null);
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+      recStreamRef.current = stream;
+      recChunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      mediaRecRef.current = recorder;
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data.size > 0) recChunksRef.current.push(ev.data);
+      };
+
+      recorder.onstop = async () => {
+        try {
+          const blob = new Blob(recChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          const arrBuf = await blob.arrayBuffer();
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const ctx = new AudioCtx();
+          const decoded = await ctx.decodeAudioData(arrBuf);
+          const channelData = decoded.getChannelData(0);
+          const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
+          const { wavBytes } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
+          void ctx.close();
+
+          const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+          const url = URL.createObjectURL(wavBlob);
+          setRecordedWavUrl(url);
+          setRecordedWavBase64(bytesToBase64(wavBytes));
+          // Auto-audition the trimmed recording!
+          const a = new Audio(url);
+          void a.play();
+        } catch (err) {
+          setRecordError(err instanceof Error ? err.message : String(err));
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      // Auto-stop after 1.8s so you just click Record and hit your tonbak once!
+      window.setTimeout(() => {
+        if (mediaRecRef.current === recorder && recorder.state === 'recording') {
+          stopMicRecording();
+        }
+      }, 1800);
+    } catch (err) {
+      setRecordError(
+        err instanceof Error ? err.message : 'Microphone permission denied or unavailable.'
+      );
+      setIsRecording(false);
+    }
+  };
+
+  const handleSaveRecording = async () => {
+    if (!recordedWavBase64) return;
+    setSaving(true);
+    setRecordError(null);
+    try {
+      const res = await fetch('/api/teacher-kit/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stroke: activeStroke, wavBase64: recordedWavBase64 }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to save recording');
+
+      await sharedTonbakSynth.reloadKit('teacher');
+      sharedTonbakSynth.triggerStroke(
+        activeStroke as Parameters<typeof sharedTonbakSynth.triggerStroke>[0],
+        sharedTonbakSynth.getCurrentTime() + 0.02
+      );
+      onSaved([activeStroke]);
+      setFeedback(`Saved your live mic recording as ${currentTab.label}!`);
+    } catch (err) {
+      setRecordError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (totalPickedStrokes === 0) return;
@@ -201,6 +315,56 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
             );
           })}
         </div>
+
+        {/* Built-in Live Mic Recorder for your own Tonbak */}
+        <div className="sampler-mic-bar">
+          <div className="sampler-mic-left">
+            <button
+              type="button"
+              className={`btn-primary ${isRecording ? 'recording-pulse' : ''}`}
+              onClick={() => (isRecording ? stopMicRecording() : void startMicRecording())}
+            >
+              {isRecording ? <Square size={14} aria-hidden="true" /> : <Mic size={14} aria-hidden="true" />}
+              <span>
+                {isRecording
+                  ? `Listening… hit ${currentTab.label.split(' ')[0]} now!`
+                  : `Record ${currentTab.label.split(' ')[0]} on Mic`}
+              </span>
+            </button>
+            <span className="sampler-mic-hint">
+              Auto-trims silence to exact strike onset &amp; normalizes
+            </span>
+          </div>
+
+          {recordedWavUrl && (
+            <div className="sampler-mic-actions">
+              <button
+                type="button"
+                className="btn-mini"
+                onClick={() => {
+                  const a = new Audio(recordedWavUrl);
+                  void a.play();
+                }}
+              >
+                <Play size={12} aria-hidden="true" /> Replay Take
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={saving}
+                onClick={() => void handleSaveRecording()}
+              >
+                <Check size={14} aria-hidden="true" /> Save as {currentTab.label.split(' ')[0]}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {recordError && (
+          <div className="ocr-error" role="alert">
+            <span>{recordError}</span>
+          </div>
+        )}
 
         {/* Source Pool Switcher (in case you want to browse another pool for this stroke) */}
         <div className="sampler-pool-bar">

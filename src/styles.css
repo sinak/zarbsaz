@@ -469,6 +469,36 @@ select:focus-visible {
   flex-wrap: wrap;
 }
 
+.sampler-mic-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: #fff8f0;
+  border: 1px solid #e2b896;
+  border-radius: var(--radius);
+}
+
+.sampler-mic-left,
+.sampler-mic-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sampler-mic-hint {
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+.recording-pulse {
+  background: #b91c1c !important;
+  border-color: #991b1b !important;
+}
+
 .kit-select {
   min-block-size: max(34px, var(--target-size));
   padding: 4px 10px;

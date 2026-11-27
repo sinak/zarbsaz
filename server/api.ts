@@ -400,6 +400,36 @@ export function createApiMiddleware(workspaceRoot: string, store: ZarbSazStore) 
         return sendJson(res, 200, { ok: true, updated });
       }
 
+      // --- Upload Direct Mic Recording WAV into Teacher's Kit ---
+      if (req.method === 'POST' && pathname === '/api/teacher-kit/upload') {
+        const body = JSON.parse(await readBody(req)) as {
+          stroke?: string;
+          wavBase64?: string;
+        };
+        const slotCounts: Record<string, number> = {
+          tom: 3,
+          bak_r: 3,
+          bak_l: 3,
+          pelang_r: 2,
+          pelang_l: 2,
+          chap: 2,
+          eshareh: 2,
+        };
+        const stroke = String(body.stroke || '');
+        const maxSlots = slotCounts[stroke];
+        if (!maxSlots || !body.wavBase64) {
+          return sendJson(res, 400, { error: 'Missing valid stroke or wavBase64' });
+        }
+
+        const buf = Buffer.from(body.wavBase64, 'base64');
+        const outDir = path.join(workspaceRoot, 'public', 'samples', 'teacher');
+        fs.mkdirSync(outDir, { recursive: true });
+        for (let i = 1; i <= maxSlots; i += 1) {
+          fs.writeFileSync(path.join(outDir, `${stroke}_${i}.wav`), buf);
+        }
+        return sendJson(res, 200, { ok: true, stroke, bytes: buf.length });
+      }
+
       // --- OCR Status & Vision OCR ---
       if (req.method === 'GET' && pathname === '/api/ocr-status') {
         return sendJson(res, 200, {
