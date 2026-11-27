@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Copy,
   ClipboardPaste,
@@ -9,6 +9,8 @@ import {
   Redo2,
   BookmarkPlus,
   Sparkles,
+  SlidersHorizontal,
+  ChevronUp,
 } from 'lucide-react';
 import {
   DURATION_LABELS,
@@ -100,6 +102,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onRedo,
 }) => {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   // Roving tabindex fallback for browsers without native focusgroup support
   useEffect(() => {
@@ -157,8 +160,71 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const hasPelangGrace = Boolean(selectedNote?.graceNotes && selectedNote.graceNotes.length > 0);
   const currentFinger = selectedNote?.finger;
 
+  const currentStrokeInfo = STROKE_INFO[currentStroke];
+  const currentDurMeta = DURATION_LABELS[currentDuration];
+
   return (
-    <div className="editor-toolbar-shell">
+    <div className={`editor-toolbar-shell ${mobileDrawerOpen ? 'mobile-drawer-open' : ''}`}>
+      {/* Mobile-only compact quick bar: Edit Drawer Toggle + pinned +Note / +Bar / Delete / Undo */}
+      <div className="mobile-editor-quickbar">
+        <button
+          type="button"
+          className={`tb-btn mobile-edit-toggle ${mobileDrawerOpen ? 'open' : ''}`}
+          aria-expanded={mobileDrawerOpen}
+          onClick={() => setMobileDrawerOpen((v) => !v)}
+        >
+          {mobileDrawerOpen ? (
+            <ChevronUp size={15} aria-hidden="true" />
+          ) : (
+            <SlidersHorizontal size={14} aria-hidden="true" />
+          )}
+          <span>
+            {mobileDrawerOpen
+              ? 'Hide Tools'
+              : `Edit: ${currentStrokeInfo.label} • ${currentDurMeta.short}`}
+          </span>
+        </button>
+
+        <div className="mobile-quick-actions">
+          <button
+            type="button"
+            className="tb-btn tb-action-primary"
+            title="Insert note"
+            onClick={onInsertNote}
+          >
+            <Plus size={14} aria-hidden="true" />
+            <span>Note</span>
+          </button>
+          <button
+            type="button"
+            className="tb-btn"
+            title="Add new measure"
+            onClick={onAddMeasure}
+          >
+            <Plus size={14} aria-hidden="true" />
+            <span>Bar</span>
+          </button>
+          <button
+            type="button"
+            className="tb-btn tb-danger"
+            aria-label="Delete selected"
+            disabled={!selectedNote && !hasMeasureSelection}
+            onClick={() => (selectedNote || hasMeasureSelection) && onDeleteSelected()}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="tb-btn"
+            aria-label="Undo"
+            disabled={!canUndo}
+            onClick={() => canUndo && onUndo()}
+          >
+            <Undo2 size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
       <div
         ref={toolbarRef}
         role="toolbar"
@@ -168,7 +234,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         className="editor-toolbar"
       >
         {/* Group 1: Tonbak Strokes */}
-        <div role="group" aria-label="Tonbak strokes" className="toolbar-group">
+        <div role="group" aria-label="Tonbak strokes" className="toolbar-group toolbar-group-strokes">
           {STROKE_ORDER.map((stroke) => {
             const info = STROKE_INFO[stroke];
             const pressed = currentStroke === stroke;
@@ -220,7 +286,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <span role="separator" aria-orientation="vertical" className="toolbar-sep" />
 
         {/* Group 2: Durations */}
-        <div role="group" aria-label="Note duration" className="toolbar-group">
+        <div role="group" aria-label="Note duration" className="toolbar-group toolbar-group-durations">
           {DURATION_ORDER.map((dur) => {
             const meta = DURATION_LABELS[dur];
             const pressed = currentDuration === dur;
@@ -242,7 +308,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <span role="separator" aria-orientation="vertical" className="toolbar-sep" />
 
         {/* Group 3: Modifiers (Dot, Pelang Grace, Riz Tremolo, Finger) */}
-        <div role="group" aria-label="Note modifiers" className="toolbar-group">
+        <div role="group" aria-label="Note modifiers" className="toolbar-group toolbar-group-modifiers">
           <button
             type="button"
             className="tb-btn"
@@ -315,7 +381,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <span role="separator" aria-orientation="vertical" className="toolbar-sep" />
 
         {/* Group 4: Insert / Measure / Copy-Paste Actions */}
-        <div role="group" aria-label="Edit and section actions" className="toolbar-group">
+        <div role="group" aria-label="Edit and section actions" className="toolbar-group toolbar-group-actions">
           <button
             type="button"
             className="tb-btn tb-action-primary"

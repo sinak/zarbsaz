@@ -972,6 +972,10 @@ select:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 
+.mobile-editor-quickbar {
+  display: none;
+}
+
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -1910,37 +1914,95 @@ select:focus-visible {
     display: none;
   }
 
+  /* Mobile collapsible multi-row note editor */
+  .mobile-editor-quickbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .mobile-edit-toggle {
+    flex: 1;
+    justify-content: flex-start;
+    font-weight: 600;
+    background: #fff;
+    border-color: var(--border-strong);
+  }
+
+  .mobile-edit-toggle.open {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .mobile-quick-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
   .editor-toolbar {
+    display: none;
+  }
+
+  .editor-toolbar-shell.mobile-drawer-open .editor-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 4px 8px 8px;
+    border-top: 1px solid var(--border);
+    overflow-x: visible;
+  }
+
+  .editor-toolbar-shell.mobile-drawer-open .toolbar-sep {
+    display: none;
+  }
+
+  .toolbar-group-strokes,
+  .toolbar-group-modifiers,
+  .toolbar-group-actions {
+    display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
-    padding: 5px 8px;
-    gap: 5px;
+    gap: 4px;
+    width: 100%;
   }
 
-  .editor-toolbar::-webkit-scrollbar,
+  .toolbar-group-durations {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    width: 100%;
+  }
+
+  .toolbar-group-durations .tb-dur-btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .toolbar-group-strokes::-webkit-scrollbar,
+  .toolbar-group-modifiers::-webkit-scrollbar,
+  .toolbar-group-actions::-webkit-scrollbar,
   .meta-controls::-webkit-scrollbar {
     display: none;
   }
 
-  .toolbar-group {
-    flex-wrap: nowrap;
-    flex-shrink: 0;
-    gap: 4px;
-  }
-
   .tb-btn {
-    padding: 3px 7px;
-    min-height: 34px;
-    font-size: 0.76rem;
+    padding: 4px 8px;
+    min-height: 36px;
+    font-size: 0.78rem;
     white-space: nowrap;
   }
 
   .tb-stroke-btn {
-    min-width: 40px;
-    padding: 3px 6px;
+    min-width: 44px;
+    padding: 3px 7px;
   }
 
   .score-scroll-area {

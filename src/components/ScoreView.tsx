@@ -453,13 +453,43 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
   const headerHeight = 82;
   const totalHeight = headerHeight + systems.length * SYSTEM_HEIGHT + 44;
 
+  const internalSvgRef = React.useRef<SVGSVGElement | null>(null);
+  const setSvgRefs = (el: SVGSVGElement | null) => {
+    internalSvgRef.current = el;
+    if (svgRef) {
+      svgRef.current = el;
+    }
+  };
+
+  // Smoothly auto-scroll the score container when playback moves off-screen (especially on mobile)
+  useEffect(() => {
+    if (playingPosition === null) return;
+    const svgEl = internalSvgRef.current;
+    if (!svgEl) return;
+    const container = svgEl.closest('.score-scroll-area') as HTMLElement | null;
+    if (!container) return;
+    const measureEl = svgEl.querySelector<SVGGElement>(
+      `[data-measure-index="${playingPosition.measureIndex}"]`
+    );
+    if (!measureEl) return;
+
+    const mRect = measureEl.getBoundingClientRect();
+    const cRect = container.getBoundingClientRect();
+    const outOfView = mRect.top < cRect.top + 18 || mRect.bottom > cRect.bottom - 28;
+    if (outOfView) {
+      const desiredOffset = Math.min(90, cRect.height * 0.26);
+      const nextTop = Math.max(0, container.scrollTop + (mRect.top - cRect.top) - desiredOffset);
+      container.scrollTo({ top: nextTop, behavior: 'smooth' });
+    }
+  }, [playingPosition?.measureIndex]);
+
   const isMeasureSelected = (mIdx: number) =>
     selection !== null && mIdx >= selection.measureStart && mIdx <= selection.measureEnd;
 
   return (
     <div className="score-paper-wrap">
       <svg
-        ref={svgRef}
+        ref={setSvgRefs}
         className="score-svg"
         viewBox={`0 0 ${pageWidth} ${totalHeight}`}
         width="100%"
@@ -621,7 +651,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                 const beamTopY = staffY - STEM_HEIGHT;
 
                 return (
-                  <g key={measure.id} className="score-measure">
+                  <g key={measure.id} data-measure-index={mIdx} className="score-measure">
                     {/* Measure selection / playback / repeat-source highlight */}
                     {(selectedMeasure || isMeasurePlaying || isReplaySource) && (
                       <rect
