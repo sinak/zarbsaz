@@ -12,6 +12,7 @@ IMG_*.jpeg
 IMG_*.jpg
 teacher_videos/
 public/samples/teacher/
+public/samples/my_tonbak/
 public/samples/candidates/
 *.mp4
 *.mov

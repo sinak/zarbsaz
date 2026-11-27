@@ -71,14 +71,22 @@ export function buildPlaybackTimeline(
 type SampleKey =
   | 'tom'
   | 'bak_r'
+  | 'bak_r_center'
   | 'bak_l'
+  | 'bak_l_center'
   | 'pelang'
+  | 'pelang_1f'
+  | 'pelang_3f'
+  | 'bak_pelang'
   | 'pelang_r'
   | 'pelang_l'
   | 'chap'
-  | 'eshareh';
+  | 'eshareh'
+  | 'riz_edge'
+  | 'riz_pelang'
+  | 'riz_full';
 
-export type TonbakKitId = 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
+export type TonbakKitId = 'my_tonbak' | 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
 
 export interface TonbakKitInfo {
   id: TonbakKitId;
@@ -87,6 +95,11 @@ export interface TonbakKitInfo {
 }
 
 export const TONBAK_KITS: TonbakKitInfo[] = [
+  {
+    id: 'my_tonbak',
+    label: 'My Tonbak (Recorded)',
+    description: 'Your own live 12-bar recording — all 34 strokes, cascades & 3 Riz styles',
+  },
   {
     id: 'teacher',
     label: "Teacher's Tonbak",
@@ -116,15 +129,34 @@ export const TONBAK_KITS: TonbakKitInfo[] = [
 
 function getKitUrls(kit: TonbakKitId): Record<SampleKey, string[]> {
   const prefix = kit === 'original' ? '/samples' : `/samples/${kit}`;
+  const isFullRecorded = kit === 'my_tonbak';
   return {
     tom: [`${prefix}/tom_1.wav`, `${prefix}/tom_2.wav`, `${prefix}/tom_3.wav`],
     bak_r: [`${prefix}/bak_r_1.wav`, `${prefix}/bak_r_2.wav`, `${prefix}/bak_r_3.wav`],
+    bak_r_center: isFullRecorded
+      ? [`${prefix}/bak_r_center_1.wav`, `${prefix}/bak_r_center_2.wav`, `${prefix}/bak_r_center_3.wav`]
+      : [],
     bak_l: [`${prefix}/bak_l_1.wav`, `${prefix}/bak_l_2.wav`, `${prefix}/bak_l_3.wav`],
-    pelang: [`${prefix}/pelang_1.wav`, `${prefix}/pelang_2.wav`, `${prefix}/bak_l_1.wav`],
+    bak_l_center: isFullRecorded
+      ? [`${prefix}/bak_l_center_1.wav`, `${prefix}/bak_l_center_2.wav`, `${prefix}/bak_l_center_3.wav`]
+      : [],
+    pelang: isFullRecorded
+      ? [`${prefix}/pelang_1.wav`, `${prefix}/pelang_2.wav`, `${prefix}/pelang_3.wav`]
+      : [`${prefix}/pelang_1.wav`, `${prefix}/pelang_2.wav`, `${prefix}/bak_l_1.wav`],
+    pelang_1f: isFullRecorded ? [`${prefix}/pelang_1f_1.wav`] : [],
+    pelang_3f: isFullRecorded ? [`${prefix}/pelang_3f_1.wav`, `${prefix}/pelang_3f_2.wav`] : [],
+    bak_pelang: isFullRecorded
+      ? [`${prefix}/bak_pelang_1.wav`, `${prefix}/bak_pelang_2.wav`, `${prefix}/bak_pelang_3.wav`]
+      : [],
     pelang_r: [`${prefix}/pelang_r_1.wav`, `${prefix}/pelang_r_2.wav`],
     pelang_l: [`${prefix}/pelang_l_1.wav`, `${prefix}/pelang_l_2.wav`],
-    chap: [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
-    eshareh: [`${prefix}/eshareh_1.wav`, `${prefix}/eshareh_2.wav`],
+    chap: isFullRecorded
+      ? [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`, `${prefix}/chap_3.wav`]
+      : [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
+    eshareh: isFullRecorded ? [] : [`${prefix}/eshareh_1.wav`, `${prefix}/eshareh_2.wav`],
+    riz_edge: isFullRecorded ? [`${prefix}/riz_edge_1.wav`] : [],
+    riz_pelang: isFullRecorded ? [`${prefix}/riz_pelang_1.wav`] : [],
+    riz_full: isFullRecorded ? [`${prefix}/riz_full_1.wav`] : [],
   };
 }
 
@@ -139,7 +171,7 @@ export class TonbakSynth {
   private masterBus: GainNode | null = null;
   private kitCache = new Map<TonbakKitId, Map<SampleKey, AudioBuffer[]>>();
   private loadingPromises = new Map<TonbakKitId, Promise<void>>();
-  private activeKit: TonbakKitId = 'teacher';
+  private activeKit: TonbakKitId = 'my_tonbak';
   private rrCursor = new Map<SampleKey, number>();
   private volume = 0.9;
 
@@ -345,12 +377,26 @@ export class TonbakSynth {
     const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
-      // Continuous Persian Tonbak Riz that dynamically fills 100% of `durationSec`:
-      // - 'edge' (^v): alternating Bak R + Bak L near edge
-      // - 'pelang' (^v̇): alternating edge Bak R + crisp Pelang L click
-      // - 'full' (◠^v): smooth 4-finger alternating roll
       const totalDur = Math.max(0.11, options.durationSec ?? 0.35);
       const rizStyle = options.rizStyle ?? 'full';
+
+      // When using a kit with real recorded Riz rolls (e.g. My Tonbak) and no glissando sweep,
+      // play the authentic recorded Riz trimmed cleanly to the exact note duration!
+      if (!options.glissando && totalDur <= 1.08) {
+        const rizKey: SampleKey =
+          rizStyle === 'edge' ? 'riz_edge' : rizStyle === 'pelang' ? 'riz_pelang' : 'riz_full';
+        if (
+          this.playRoundRobinSample(ctx, rizKey, time, {
+            gain: humanVel * 0.96,
+            rate: 1.0,
+            maxDurationSec: totalDur + 0.03,
+          })
+        ) {
+          return;
+        }
+      }
+
+      // Dynamic duration-filling Riz (used for Glissando pitch/timbre sweeps & kits without recorded rolls)
       const targetStepSec = rizStyle === 'full' ? 0.031 : 0.036;
       const count = Math.max(4, Math.round(totalDur / targetStepSec));
       const exactStep = totalDur / count;
@@ -407,6 +453,9 @@ export class TonbakSynth {
 
     // Simultaneous Bak R + Pelang L (×̇ on Page 30)
     if (stroke === 'bak_pelang') {
+      if (this.playRoundRobinSample(ctx, 'bak_pelang', time, { gain: humanVel, rate: 1.0 })) {
+        return;
+      }
       this.playRoundRobinSample(ctx, 'bak_r', time, { gain: humanVel * 0.82, rate: 1.0 });
       this.playRoundRobinSample(ctx, 'pelang', time + 0.002, { gain: humanVel * 0.86, rate: 1.04 });
       return;
@@ -423,11 +472,11 @@ export class TonbakSynth {
     }
 
     // One-hand 4-finger cascade (curved arc ◠ over ^ or v in Bahman Rajabi notation).
-    // In Teacher's Kit, pelang_r / pelang_l are real recorded 4-finger cascade samples,
+    // In My Tonbak and Teacher's Kit, pelang_r / pelang_l are real recorded 4-finger cascade samples,
     // so play them directly! Other built-in kits synthesize the 4-finger cascade.
     if (stroke === 'pelang_r' || stroke === 'pelang_l') {
       const isGrace = (options.durationSec ?? 0.2) < 0.08;
-      if (this.activeKit === 'teacher') {
+      if (this.activeKit === 'my_tonbak' || this.activeKit === 'teacher') {
         this.playRoundRobinSample(ctx, stroke, time, {
           gain: isGrace ? humanVel * 0.88 : humanVel,
           rate: isGrace ? 1.08 : 1.0,
@@ -453,6 +502,9 @@ export class TonbakSynth {
 
     // Bak R placement: + = center of skin (warmer/deeper), - = edge (crisper)
     if (stroke === 'bak_r' && options.placement === 'center') {
+      if (this.playRoundRobinSample(ctx, 'bak_r_center', time, { gain: humanVel, rate: 1.0 })) {
+        return;
+      }
       this.playRoundRobinSample(ctx, 'bak_r', time, {
         gain: humanVel * 1.04,
         rate: 0.88,
@@ -463,13 +515,16 @@ export class TonbakSynth {
     if (stroke === 'bak_r' && options.placement === 'edge') {
       this.playRoundRobinSample(ctx, 'chap', time, {
         gain: humanVel,
-        rate: 1.05,
+        rate: 1.02,
       });
       return;
     }
 
     // Left-hand 2-finger center Bak (v⁼ without dot)
     if (stroke === 'bak_l' && options.finger === '=') {
+      if (this.playRoundRobinSample(ctx, 'bak_l_center', time, { gain: humanVel, rate: 1.0 })) {
+        return;
+      }
       this.playRoundRobinSample(ctx, 'bak_l', time, {
         gain: humanVel * 1.04,
         rate: 0.88,
@@ -478,8 +533,20 @@ export class TonbakSynth {
       return;
     }
 
-    // Left-hand Pelang click (v̇ with finger 1=pinky, 2, 3, =)
+    // Left-hand Pelang click (v̇ with finger 1=pinky, 2=ring, 3=middle, =)
     if (stroke === 'pelang') {
+      if (
+        options.finger === '1' &&
+        this.playRoundRobinSample(ctx, 'pelang_1f', time, { gain: humanVel, rate: 1.0 })
+      ) {
+        return;
+      }
+      if (
+        options.finger === '3' &&
+        this.playRoundRobinSample(ctx, 'pelang_3f', time, { gain: humanVel, rate: 1.0 })
+      ) {
+        return;
+      }
       const fRate =
         options.finger === '1'
           ? 1.12
@@ -509,7 +576,7 @@ export class TonbakSynth {
         (g) => g.stroke === 'pelang_r' || g.stroke === 'pelang_l'
       );
       const graceSpacing = isDorrabCascade
-        ? this.activeKit === 'teacher'
+        ? this.activeKit === 'my_tonbak' || this.activeKit === 'teacher'
           ? 0.078
           : 0.056
         : note.graceNotes.length >= 4

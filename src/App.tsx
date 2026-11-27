@@ -211,7 +211,7 @@ export function App() {
   const [loopPlayback, setLoopPlayback] = useState(false);
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [volume, setVolume] = useState(0.88);
-  const [soundKit, setSoundKit] = useState<TonbakKitId>('teacher');
+  const [soundKit, setSoundKit] = useState<TonbakKitId>('my_tonbak');
 
   // Modals, Drawer & Panels
   const [ocrOpen, setOcrOpen] = useState(false);
