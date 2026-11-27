@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeBeamGroups, computeBeamSegments } from './beaming';
 import { buildPlaybackTimeline, getQuarterNoteSeconds } from './tonbakSynth';
 import { layoutSystems } from '../components/ScoreView';
+import { buildScoreUrl, parseScoreUrl, resolveUrlSelection } from './urlState';
 import {
   cloneMeasureWithNewIds,
   normalizeOcrPage,
@@ -172,5 +173,60 @@ describe('OCR JSON normalization & copy-paste cloning', () => {
       [5, 6, 7, 8],
       [9, 10],
     ]);
+  });
+
+  it('builds and parses deep-link URLs for pages, single bars, bar ranges, and specific notes', () => {
+    const page: TonbakPage = {
+      id: 'book-page-18',
+      title: 'Page 18',
+      timeSignature: { numerator: 6, denominator: 8 },
+      tempo: 96,
+      createdAt: 0,
+      updatedAt: 0,
+      measures: [
+        { id: 'm0', notes: [mkNote('n0', 'tom', 'eighth'), mkNote('n1', 'bak_r', 'eighth')] },
+        { id: 'm1', notes: [mkNote('n2', 'bak_l', 'eighth'), mkNote('n3', 'tom', 'quarter')] },
+        { id: 'm2', notes: [mkNote('n4', 'tom', 'quarter')] },
+      ],
+    };
+
+    // Page only
+    expect(buildScoreUrl(page, null)).toBe('/p/book-page-18');
+    expect(parseScoreUrl('/p/book-page-18', '')).toEqual({
+      pageId: 'book-page-18',
+      measureStart: undefined,
+      measureEnd: undefined,
+      noteIndex: undefined,
+    });
+
+    // Single bar (1-based bar 2 -> 0-based index 1)
+    const singleBarUrl = buildScoreUrl(page, { measureStart: 1, measureEnd: 1 });
+    expect(singleBarUrl).toBe('/p/book-page-18?bars=2');
+    const parsedSingle = parseScoreUrl('/p/book-page-18', '?bars=2');
+    expect(resolveUrlSelection(page, parsedSingle)).toEqual({
+      measureStart: 1,
+      measureEnd: 1,
+      noteId: undefined,
+    });
+
+    // Multi-bar range (bars 1-3)
+    const rangeUrl = buildScoreUrl(page, { measureStart: 0, measureEnd: 2 });
+    expect(rangeUrl).toBe('/p/book-page-18?bars=1-3');
+    const parsedRange = parseScoreUrl('/p/book-page-18', '?bars=1-3');
+    expect(resolveUrlSelection(page, parsedRange)).toEqual({
+      measureStart: 0,
+      measureEnd: 2,
+      noteId: undefined,
+    });
+
+    // Specific note (bar 2, note 2 -> n3)
+    const noteUrl = buildScoreUrl(page, { measureStart: 1, measureEnd: 1, noteId: 'n3' });
+    expect(noteUrl).toBe('/p/book-page-18?bars=2&note=2');
+    const parsedNote = parseScoreUrl('/p/book-page-18', '?bars=2&note=2');
+    expect(resolveUrlSelection(page, parsedNote)).toEqual({
+      measureStart: 1,
+      measureEnd: 1,
+      noteId: 'n3',
+    });
   });
 });

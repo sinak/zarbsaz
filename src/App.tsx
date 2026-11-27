@@ -53,6 +53,7 @@ import {
   TONBAK_KITS,
   type TonbakKitId,
 } from './lib/tonbakSynth';
+import { buildScoreUrl, parseScoreUrl, resolveUrlSelection } from './lib/urlState';
 import { ScoreView, type ScoreSelection } from './components/ScoreView';
 import { EditorToolbar } from './components/EditorToolbar';
 import { OcrModal, type BulkImportResult } from './components/OcrModal';
@@ -166,10 +167,27 @@ export function App() {
     [DEFAULT_BOOK_ID]: true,
   });
 
-  const [activePageId, setActivePageId] = useState<string>(() => loadGuestPages()[0]?.id || '');
-  const [selection, setSelection] = useState<ScoreSelection | null>({
-    measureStart: 0,
-    measureEnd: 0,
+  const initialUrlState = useMemo(
+    () => parseScoreUrl(window.location.pathname, window.location.search),
+    []
+  );
+  const pendingUrlRestoreRef = useRef(initialUrlState);
+
+  const [activePageId, setActivePageId] = useState<string>(() => {
+    const guest = loadGuestPages();
+    if (initialUrlState.pageId && guest.some((p) => p.id === initialUrlState.pageId)) {
+      return initialUrlState.pageId;
+    }
+    return guest[0]?.id || '';
+  });
+  const [selection, setSelection] = useState<ScoreSelection | null>(() => {
+    const guest = loadGuestPages();
+    const target =
+      (initialUrlState.pageId && guest.find((p) => p.id === initialUrlState.pageId)) || guest[0];
+    if (target && initialUrlState.measureStart !== undefined) {
+      return resolveUrlSelection(target, initialUrlState);
+    }
+    return null;
   });
   const [activeStroke, setActiveStroke] = useState<StrokeType>('tom');
   const [activeDuration, setActiveDuration] = useState<Duration>('eighth');
@@ -236,7 +254,14 @@ export function App() {
       if (lib.books.length > 0) {
         setExpandedBooks((prev) => ({ ...prev, [lib.books[0].id]: true }));
       }
-      if (lib.pieces.length > 0) {
+      const allLoaded = [...lib.pieces, ...lib.sharedBookPieces, ...lib.sharedPieces];
+      const pending = pendingUrlRestoreRef.current;
+      const matched = pending.pageId ? allLoaded.find((p) => p.id === pending.pageId) : undefined;
+      if (matched) {
+        setActivePageId(matched.id);
+        setSelection(resolveUrlSelection(matched, pending));
+        pendingUrlRestoreRef.current = { pageId: null };
+      } else if (lib.pieces.length > 0) {
         setActivePageId(lib.pieces[0].id);
       }
     } catch {
@@ -293,6 +318,44 @@ export function App() {
   useEffect(() => {
     sharedTonbakPlayer.setOptions({ loop: loopPlayback, metronome: metronomeOn, volume });
   }, [loopPlayback, metronomeOn, volume]);
+
+  // Keep browser URL synced with active page + selected bar(s) / specific note
+  const lastUrlPageIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (publicShareRoute || !activePage) return;
+    const nextUrl = buildScoreUrl(activePage, selection);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (nextUrl === currentUrl) {
+      lastUrlPageIdRef.current = activePage.id;
+      return;
+    }
+    if (lastUrlPageIdRef.current && lastUrlPageIdRef.current !== activePage.id) {
+      window.history.pushState({}, '', nextUrl);
+    } else {
+      window.history.replaceState({}, '', nextUrl);
+    }
+    lastUrlPageIdRef.current = activePage.id;
+  }, [publicShareRoute, activePage, selection]);
+
+  // Support browser Back / Forward navigation across deep-linked pages, bars, and notes
+  useEffect(() => {
+    const onPopState = () => {
+      const share = parseShareQuery();
+      setPublicShareRoute(share);
+      if (share) return;
+
+      const parsed = parseScoreUrl(window.location.pathname, window.location.search);
+      if (!parsed.pageId) return;
+      const target = allAccessiblePages.find((p) => p.id === parsed.pageId);
+      if (target) {
+        lastUrlPageIdRef.current = target.id;
+        setActivePageId(target.id);
+        setSelection(resolveUrlSelection(target, parsed));
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [allAccessiblePages]);
 
   const announce = useCallback((msg: string) => setStatusMessage(msg), []);
 
@@ -1078,7 +1141,7 @@ export function App() {
     setIsPlaying(false);
     setPlayingPosition(null);
     setActivePageId(id);
-    setSelection({ measureStart: 0, measureEnd: 0 });
+    setSelection(null);
     setDrawerOpen(false);
   };
 
@@ -1792,6 +1855,7 @@ export function App() {
                 playingPosition={playingPosition}
                 onSelectNote={handleSelectNote}
                 onSelectMeasure={handleSelectMeasure}
+                onClearSelection={() => setSelection(null)}
                 onQuickAddNote={(mIdx) => handleInsertNote(mIdx)}
                 svgRef={scoreSvgRef}
               />

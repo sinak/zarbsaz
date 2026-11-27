@@ -23,6 +23,7 @@ interface ScoreViewProps {
   playingPosition: { measureIndex: number; sourceMeasureIndex?: number; noteId: string } | null;
   onSelectNote: (measureIndex: number, noteId: string, shiftKey: boolean) => void;
   onSelectMeasure: (measureIndex: number, shiftKey: boolean) => void;
+  onClearSelection?: () => void;
   onQuickAddNote: (measureIndex: number) => void;
   svgRef?: React.RefObject<SVGSVGElement | null>;
 }
@@ -326,6 +327,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
   playingPosition,
   onSelectNote,
   onSelectMeasure,
+  onClearSelection,
   onQuickAddNote,
   svgRef,
 }) => {
@@ -364,6 +366,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
         width="100%"
         role="img"
         aria-label={`Tonbak sheet music: ${page.title}`}
+        onClick={() => onClearSelection?.()}
       >
         {/* Warm archival paper background */}
         <rect x={0} y={0} width={PAGE_WIDTH} height={totalHeight} fill="#fbf7ef" rx={6} />
