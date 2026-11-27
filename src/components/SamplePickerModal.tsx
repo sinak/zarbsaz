@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Play, Check, X, Sliders, Volume2, Mic, Square, Upload } from 'lucide-react';
 import { sharedTonbakSynth } from '../lib/tonbakSynth';
-import { bytesToBase64, trimAndEncodeDrumWav } from '../lib/wavEncoder';
+import { bytesToBase64, trimAndEncodeDrumWav, type DrumHitStats } from '../lib/wavEncoder';
 
 interface CandidateItem {
   file: string;
@@ -64,6 +64,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   const [micLevel, setMicLevel] = useState(0);
   const [recordedWavUrl, setRecordedWavUrl] = useState<string | null>(null);
   const [recordedWavBase64, setRecordedWavBase64] = useState<string | null>(null);
+  const [recordedStats, setRecordedStats] = useState<DrumHitStats | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
   const recStreamRef = useRef<MediaStream | null>(null);
   const recCtxRef = useRef<AudioContext | null>(null);
@@ -165,11 +166,12 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       }
 
       const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
-      const { wavBytes } = trimAndEncodeDrumWav(merged, recSampleRateRef.current, maxDur);
+      const { wavBytes, stats } = trimAndEncodeDrumWav(merged, recSampleRateRef.current, maxDur);
       const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
       const url = URL.createObjectURL(wavBlob);
       setRecordedWavUrl(url);
       setRecordedWavBase64(bytesToBase64(wavBytes));
+      setRecordedStats(stats);
       const a = new Audio(url);
       void a.play();
     } catch (err) {
@@ -189,6 +191,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       URL.revokeObjectURL(recordedWavUrl);
       setRecordedWavUrl(null);
       setRecordedWavBase64(null);
+      setRecordedStats(null);
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -277,7 +280,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       const decoded = await ctx.decodeAudioData(arrBuf);
       const channelData = decoded.getChannelData(0);
       const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
-      const { wavBytes } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
+      const { wavBytes, stats } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
       void ctx.close();
 
       if (recordedWavUrl) URL.revokeObjectURL(recordedWavUrl);
@@ -285,6 +288,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       const url = URL.createObjectURL(wavBlob);
       setRecordedWavUrl(url);
       setRecordedWavBase64(bytesToBase64(wavBytes));
+      setRecordedStats(stats);
       const a = new Audio(url);
       void a.play();
     } catch (err) {
@@ -449,6 +453,12 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
 
           {recordedWavUrl && (
             <div className="sampler-mic-actions">
+              {recordedStats && (
+                <span className="sampler-stats-pill" title="Peak frequency, spectral centroid, and trimmed length">
+                  {recordedStats.peakHz} Hz (cent {recordedStats.centroidHz} Hz) •{' '}
+                  {recordedStats.durationMs} ms
+                </span>
+              )}
               <button
                 type="button"
                 className="btn-mini"

@@ -3,6 +3,7 @@ import { computeBeamGroups, computeBeamSegments } from './beaming';
 import { buildPlaybackTimeline, getQuarterNoteSeconds } from './tonbakSynth';
 import { layoutSystems } from '../components/ScoreView';
 import { buildScoreUrl, parseScoreUrl, resolveUrlSelection } from './urlState';
+import { analyzeDrumHit } from './wavEncoder';
 import {
   cloneMeasureWithNewIds,
   normalizeOcrPage,
@@ -228,5 +229,18 @@ describe('OCR JSON normalization & copy-paste cloning', () => {
       measureEnd: 1,
       noteId: 'n3',
     });
+  });
+
+  it('measures peak frequency and duration of a captured drum hit accurately', () => {
+    const sr = 44100;
+    const len = Math.round(sr * 0.25); // 250ms
+    const sine = new Float32Array(len);
+    for (let i = 0; i < len; i += 1) {
+      sine[i] = Math.sin((2 * Math.PI * 200 * i) / sr);
+    }
+    const stats = analyzeDrumHit(sine, sr);
+    expect(stats.durationMs).toBe(250);
+    expect(stats.peakHz).toBeGreaterThanOrEqual(190);
+    expect(stats.peakHz).toBeLessThanOrEqual(215);
   });
 });

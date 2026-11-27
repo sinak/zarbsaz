@@ -1,3 +1,68 @@
+export interface DrumHitStats {
+  /** Length of the trimmed recording in milliseconds */
+  durationMs: number;
+  /** Peak dominant frequency (Hz) in the 50–4000 Hz range */
+  peakHz: number;
+  /** Energy-weighted spectral centroid (Hz) */
+  centroidHz: number;
+}
+
+/**
+ * Analyze a trimmed mono drum hit to report its length (ms), peak frequency (Hz),
+ * and spectral centroid (Hz) — matching the metadata shown on candidate clips.
+ */
+export function analyzeDrumHit(samples: Float32Array, sampleRate: number): DrumHitStats {
+  const durationMs = Math.round((samples.length / sampleRate) * 1000);
+  // Analyze first ~64ms (next power-of-2 up to 2048 samples, downsampled 2x for fast DFT)
+  const stride = sampleRate >= 40000 ? 2 : 1;
+  const effRate = sampleRate / stride;
+  const maxN = Math.min(1024, Math.floor(samples.length / stride));
+  if (maxN < 32) {
+    return { durationMs, peakHz: 0, centroidHz: 0 };
+  }
+
+  // Apply Hann window
+  const windowed = new Float64Array(maxN);
+  for (let i = 0; i < maxN; i += 1) {
+    const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (maxN - 1)));
+    windowed[i] = samples[i * stride] * w;
+  }
+
+  // Evaluate DFT bins from 50 Hz up to 4000 Hz
+  const minK = Math.max(1, Math.floor((50 * maxN) / effRate));
+  const maxK = Math.min(Math.floor(maxN / 2), Math.ceil((4000 * maxN) / effRate));
+
+  let bestEnergy = -1;
+  let peakHz = 0;
+  let weightedSum = 0;
+  let totalEnergy = 0;
+
+  for (let k = minK; k <= maxK; k += 1) {
+    let re = 0;
+    let im = 0;
+    const step = (2 * Math.PI * k) / maxN;
+    for (let n = 0; n < maxN; n += 1) {
+      const ang = step * n;
+      re += windowed[n] * Math.cos(ang);
+      im -= windowed[n] * Math.sin(ang);
+    }
+    const energy = re * re + im * im;
+    const freq = (k * effRate) / maxN;
+    if (energy > bestEnergy) {
+      bestEnergy = energy;
+      peakHz = freq;
+    }
+    weightedSum += freq * energy;
+    totalEnergy += energy;
+  }
+
+  return {
+    durationMs,
+    peakHz: Math.round(peakHz),
+    centroidHz: totalEnergy > 0 ? Math.round(weightedSum / totalEnergy) : 0,
+  };
+}
+
 /**
  * Trim leading silence right to the exact acoustic onset of a drum hit,
  * apply a smooth tail fade, normalize cleanly, and encode as 16-bit PCM WAV.
@@ -6,7 +71,7 @@ export function trimAndEncodeDrumWav(
   samples: Float32Array,
   sampleRate: number,
   maxDurationSec = 0.42
-): { wavBytes: Uint8Array; trimmedSamples: Float32Array } {
+): { wavBytes: Uint8Array; trimmedSamples: Float32Array; stats: DrumHitStats } {
   let peak = 0;
   for (let i = 0; i < samples.length; i += 1) {
     const a = Math.abs(samples[i]);
@@ -56,7 +121,8 @@ export function trimAndEncodeDrumWav(
     trimmed[i] = Math.max(-1, Math.min(1, trimmed[i] * scale));
   }
 
-  return { wavBytes: encodePcm16Wav(trimmed, sampleRate), trimmedSamples: trimmed };
+  const stats = analyzeDrumHit(trimmed, sampleRate);
+  return { wavBytes: encodePcm16Wav(trimmed, sampleRate), trimmedSamples: trimmed, stats };
 }
 
 export function encodePcm16Wav(samples: Float32Array, sampleRate: number): Uint8Array {

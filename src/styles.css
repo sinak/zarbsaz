@@ -514,6 +514,17 @@ select:focus-visible {
   transition: width 0.05s linear;
 }
 
+.sampler-stats-pill {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .kit-select {
   min-block-size: max(34px, var(--target-size));
   padding: 4px 10px;
