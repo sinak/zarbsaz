@@ -221,6 +221,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [showSourcePhoto, setShowSourcePhoto] = useState(false);
+  const [availableBookPhotos, setAvailableBookPhotos] = useState<Set<string>>(() => new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileNewMenuOpen, setMobileNewMenuOpen] = useState(false);
   const [newBookOpen, setNewBookOpen] = useState(false);
@@ -248,6 +249,26 @@ export function App() {
   );
 
   const standalonePages = useMemo(() => pages.filter((p) => !p.bookId), [pages]);
+
+  // Detect which local /api/book-photos/* images actually exist (present on localhost, empty on cloud)
+  useEffect(() => {
+    fetch('/api/book-photos')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { photos?: Array<{ url: string }> } | null) => {
+        if (data && Array.isArray(data.photos)) {
+          setAvailableBookPhotos(new Set(data.photos.map((p) => p.url)));
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+  }, []);
+
+  const hasValidSourcePhoto = Boolean(
+    activePage?.sourceImage &&
+      (activePage.sourceImage.startsWith('data:image/') ||
+        availableBookPhotos.has(activePage.sourceImage))
+  );
 
   const loadAccountLibrary = useCallback(async () => {
     try {
@@ -1776,7 +1797,7 @@ export function App() {
                 </button>
               )}
 
-              {activePage.sourceImage && (
+              {hasValidSourcePhoto && (
                 <button
                   type="button"
                   className="btn-toggle"
@@ -1853,9 +1874,9 @@ export function App() {
           {/* Score Engraving Canvas */}
           <div
             id="tonbak-score-canvas"
-            className={`score-stage ${showSourcePhoto && activePage.sourceImage ? 'with-photo' : ''}`}
+            className={`score-stage ${showSourcePhoto && hasValidSourcePhoto ? 'with-photo' : ''}`}
           >
-            {showSourcePhoto && activePage.sourceImage && (
+            {showSourcePhoto && hasValidSourcePhoto && activePage.sourceImage && (
               <div className="reference-photo-pane">
                 <div className="pane-caption">Original Book Photo Reference</div>
                 <img src={activePage.sourceImage} alt="Original book page" />
@@ -1954,6 +1975,29 @@ export function App() {
         onChangeVolume={(v) => setVolume(v)}
         onOpenSamplePicker={() => setSamplerOpen(true)}
         onPrint={() => window.print()}
+        pieceReadOnly={isActivePageReadOnly}
+        meterValue={`${activePage.timeSignature.numerator}/${activePage.timeSignature.denominator}`}
+        onChangeMeter={(val) => {
+          const [num, den] = val.split('/').map(Number);
+          updateActivePage((p) => ({
+            ...p,
+            timeSignature: { numerator: num, denominator: den },
+            tempoBeat: den === 8 && num % 3 === 0 ? 'dotted-quarter' : 'quarter',
+          }));
+        }}
+        barsPerLineValue={
+          !activePage.barsPerLine || activePage.barsPerLine.length === 0
+            ? 'auto'
+            : activePage.barsPerLine.length === 1
+              ? String(activePage.barsPerLine[0])
+              : 'custom'
+        }
+        hasCustomBookLayout={Boolean(activePage.barsPerLine && activePage.barsPerLine.length > 1)}
+        onChangeBarsPerLine={(val) => {
+          if (val === 'custom') return;
+          const nextBarsPerLine = val === 'auto' ? undefined : [Number(val)];
+          updateActivePage((p) => ({ ...p, barsPerLine: nextBarsPerLine }));
+        }}
       />
 
       <SamplePickerModal

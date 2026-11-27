@@ -1919,37 +1919,31 @@ select:focus-visible {
     flex-shrink: 0;
   }
 
-  /* Compact mobile piece header: title + single horizontally-scrolling controls strip */
+  /* Compact single-line mobile piece header: Title + Share only (Meter & Bars/Line are in Settings ⚙) */
   .page-meta-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 5px;
-    padding: 6px 10px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 10px;
+    flex-wrap: nowrap;
   }
 
   .page-title-input {
-    font-size: 0.94rem;
+    font-size: 0.92rem;
     padding: 2px 4px;
     min-width: 0;
   }
 
   .meta-controls {
     display: flex;
-    flex-wrap: wrap;
-    overflow-x: visible;
-    gap: 5px 8px;
-  }
-
-  .meta-field {
+    flex-wrap: nowrap;
+    gap: 6px;
     flex-shrink: 0;
-    font-size: 0.74rem;
-    gap: 4px;
   }
 
-  .meta-field select {
-    padding: 3px 6px;
-    font-size: 0.78rem;
-    max-width: 112px;
+  .meta-controls .meta-field {
+    display: none;
   }
 
   /* Hide desktop Shift+Click tip on mobile to maximize score space */

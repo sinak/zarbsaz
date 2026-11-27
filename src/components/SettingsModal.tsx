@@ -13,6 +13,13 @@ interface SettingsModalProps {
   onChangeVolume: (vol: number) => void;
   onOpenSamplePicker: () => void;
   onPrint: () => void;
+  /** Optional current piece layout controls (handy on mobile where piece meta controls are tucked away) */
+  pieceReadOnly?: boolean;
+  meterValue?: string;
+  onChangeMeter?: (meter: string) => void;
+  barsPerLineValue?: string;
+  hasCustomBookLayout?: boolean;
+  onChangeBarsPerLine?: (val: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -26,6 +33,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onChangeVolume,
   onOpenSamplePicker,
   onPrint,
+  pieceReadOnly,
+  meterValue,
+  onChangeMeter,
+  barsPerLineValue,
+  hasCustomBookLayout,
+  onChangeBarsPerLine,
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -162,6 +175,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
         </div>
+
+        {meterValue && onChangeMeter && barsPerLineValue && onChangeBarsPerLine && (
+          <div className="settings-section">
+            <div className="settings-row">
+              <label htmlFor="settings-meter-select" className="settings-label" style={{ margin: 0 }}>
+                Time Signature (Meter)
+              </label>
+              <select
+                id="settings-meter-select"
+                className="settings-select"
+                style={{ width: 120 }}
+                disabled={pieceReadOnly}
+                value={meterValue}
+                onChange={(e) => onChangeMeter(e.target.value)}
+              >
+                <option value="6/8">6/8</option>
+                <option value="2/4">2/4</option>
+                <option value="3/4">3/4</option>
+                <option value="4/4">4/4</option>
+                <option value="5/8">5/8</option>
+                <option value="7/8">7/8</option>
+                <option value="9/8">9/8</option>
+                <option value="6/4">6/4</option>
+              </select>
+            </div>
+
+            <div className="settings-row" style={{ marginTop: 10 }}>
+              <label htmlFor="settings-bars-select" className="settings-label" style={{ margin: 0 }}>
+                Bars per Line
+              </label>
+              <select
+                id="settings-bars-select"
+                className="settings-select"
+                style={{ width: 120 }}
+                disabled={pieceReadOnly}
+                value={barsPerLineValue}
+                onChange={(e) => onChangeBarsPerLine(e.target.value)}
+              >
+                <option value="auto">Auto</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                {hasCustomBookLayout && <option value="custom">Book layout</option>}
+              </select>
+            </div>
+          </div>
+        )}
 
         <div className="settings-section">
           <button
