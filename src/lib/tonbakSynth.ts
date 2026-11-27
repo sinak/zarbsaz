@@ -381,6 +381,26 @@ export class TonbakSynth {
       return;
     }
 
+    // One-hand 4-finger cascade (curved arc ◠ over ^ or v in Bahman Rajabi notation:
+    // pinky 1 -> ring 2 -> middle 3 -> index 4 rippling rapidly on one hand)
+    if (stroke === 'pelang_r' || stroke === 'pelang_l') {
+      const isGrace = (options.durationSec ?? 0.2) < 0.08;
+      const stepSec = isGrace ? 0.013 : 0.018;
+      // Natural 4-finger gradient: pinky (lighter/brighter) -> ring -> middle -> index (firmer)
+      const fingerGains = [0.56, 0.72, 0.86, 1.0];
+      const fingerRates = [1.08, 1.04, 1.0, 0.96];
+      for (let f = 0; f < 4; f += 1) {
+        const ft = Math.max(ctx.currentTime + 0.002, time + f * stepSec);
+        this.playRoundRobinSample(ctx, stroke, ft, {
+          gain: humanVel * fingerGains[f] * (isGrace ? 0.76 : 0.88),
+          rate: fingerRates[f],
+          softenHz: 5800,
+          maxDurationSec: 0.085,
+        });
+      }
+      return;
+    }
+
     const fingerRate =
       stroke === 'bak_l' && (options.finger === '3' || options.finger === '=') ? 1.05 : 1.0;
 
@@ -394,13 +414,17 @@ export class TonbakSynth {
   public triggerNote(note: TonbakNote, time: number, durationSec: number) {
     const ctx = this.ensureContext();
     if (note.graceNotes && note.graceNotes.length > 0) {
-      const graceSpacing = 0.033;
+      const isDorrabCascade = note.graceNotes.some(
+        (g) => g.stroke === 'pelang_r' || g.stroke === 'pelang_l'
+      );
+      const graceSpacing = isDorrabCascade ? 0.056 : 0.033;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);
         this.triggerStroke(g.stroke, gt, {
-          velocity: 0.66,
+          velocity: 0.72,
           finger: g.finger,
+          durationSec: 0.05,
         });
       });
     }
