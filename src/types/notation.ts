@@ -51,8 +51,10 @@ export interface TonbakNote {
 export interface Measure {
   id: string;
   notes: TonbakNote[];
-  /** When true, renders the `%` (repeat previous measure) sign and plays the preceding measure. */
+  /** When true, renders the `%` (repeat previous measure) sign and plays the preceding measure(s). */
   isRepeatPrevious?: boolean;
+  /** Number of previous measures to replay when `isRepeatPrevious` is true (1 = single `%`, 2 = `%` with vertical barline through it). */
+  repeatBars?: 1 | 2;
 }
 
 export interface TimeSignature {
@@ -296,11 +298,35 @@ export function resolveMeasureNotes(measures: Measure[], index: number): TonbakN
   return resolveMeasureWithOrigin(measures, index).notes;
 }
 
+/**
+ * Resolve `%` repeat measures into the ordered sequence of source measures to replay.
+ * A standard 1-bar `%` returns 1 source measure; a 2-bar repeat (`repeatBars: 2`, drawn with
+ * a vertical barline through `%`) returns the previous 2 measures in order.
+ */
+export function resolveMeasureSequenceWithOrigin(
+  measures: Measure[],
+  index: number
+): Array<{ sourceMeasureIndex: number; notes: TonbakNote[] }> {
+  const m = measures[index];
+  if (!m) return [];
+  if (!m.isRepeatPrevious) {
+    return [{ sourceMeasureIndex: index, notes: m.notes }];
+  }
+  if (m.repeatBars === 2 && index >= 2) {
+    return [
+      resolveMeasureWithOrigin(measures, index - 2),
+      resolveMeasureWithOrigin(measures, index - 1),
+    ];
+  }
+  return [resolveMeasureWithOrigin(measures, index)];
+}
+
 /** Deep-clone a measure with fresh unique IDs (for copy/paste). */
 export function cloneMeasureWithNewIds(measure: Measure): Measure {
   return {
     id: createId('m'),
     isRepeatPrevious: measure.isRepeatPrevious,
+    repeatBars: measure.repeatBars,
     notes: measure.notes.map(cloneNoteWithNewIds),
   };
 }
@@ -373,6 +399,8 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
   const measures: Measure[] = rawMeasures.map((mRaw) => {
     const m = (mRaw && typeof mRaw === 'object' ? mRaw : {}) as Record<string, unknown>;
     const isRepeatPrevious = Boolean(m.isRepeatPrevious);
+    const repeatBars: 1 | 2 | undefined =
+      isRepeatPrevious && m.repeatBars === 2 ? 2 : isRepeatPrevious ? 1 : undefined;
     const rawNotes = Array.isArray(m.notes) ? m.notes : [];
     const notes: TonbakNote[] = isRepeatPrevious
       ? []
@@ -437,6 +465,7 @@ export function normalizeOcrPage(raw: unknown, fallbackTitle = 'Imported Page', 
     return {
       id: createId('m'),
       isRepeatPrevious,
+      repeatBars,
       notes,
     };
   });

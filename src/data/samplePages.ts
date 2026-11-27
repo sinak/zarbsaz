@@ -30,6 +30,10 @@ function repeatM(): Measure {
   return { id: createId('m'), isRepeatPrevious: true, notes: [] };
 }
 
+function repeat2M(): Measure {
+  return { id: createId('m'), isRepeatPrevious: true, repeatBars: 2, notes: [] };
+}
+
 const now = Date.now();
 
 /**
@@ -981,7 +985,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('bak_r', 'thirtysecond', { placement: 'center' }), n('bak_l', 'thirtysecond'),
       ]),
       m([n('riz', 'half', { tremolo: true, rizStyle: 'edge', graceNotes: [{ stroke: 'tom' }] })]),
-      repeatM(),
+      repeat2M(),
       // Line 4
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'),
@@ -990,7 +994,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('bak_r', 'thirtysecond', { placement: 'center' }), n('bak_l', 'thirtysecond'),
       ]),
       m([n('riz', 'half', { tremolo: true, rizStyle: 'pelang', graceNotes: [{ stroke: 'tom' }] })]),
-      repeatM(),
+      repeat2M(),
       // Line 5
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'),
@@ -999,7 +1003,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('bak_r', 'thirtysecond', { placement: 'center' }), n('bak_l', 'thirtysecond'),
       ]),
       m([n('riz', 'half', { tremolo: true, rizStyle: 'full', graceNotes: [{ stroke: 'tom' }] })]),
-      repeatM(),
+      repeat2M(),
       // Line 6
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'),
@@ -1011,7 +1015,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('riz', 'quarter', { tremolo: true, rizStyle: 'edge', graceNotes: [{ stroke: 'tom' }] }),
         n('riz', 'quarter', { tremolo: true, rizStyle: 'edge', graceNotes: [{ stroke: 'tom' }] }),
       ]),
-      repeatM(),
+      repeat2M(),
       // Line 7
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'),
@@ -1023,7 +1027,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('riz', 'quarter', { tremolo: true, rizStyle: 'pelang', graceNotes: [{ stroke: 'tom' }] }),
         n('riz', 'quarter', { tremolo: true, rizStyle: 'pelang', graceNotes: [{ stroke: 'tom' }] }),
       ]),
-      repeatM(),
+      repeat2M(),
       // Line 8
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'),
@@ -1035,7 +1039,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('riz', 'quarter', { tremolo: true, rizStyle: 'full', graceNotes: [{ stroke: 'tom' }] }),
         n('riz', 'quarter', { tremolo: true, rizStyle: 'full', graceNotes: [{ stroke: 'tom' }] }),
       ]),
-      repeatM(),
+      repeat2M(),
       // Line 9
       m([
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('bak_r', 'thirtysecond', { placement: 'center' }), n('bak_l', 'thirtysecond'),
@@ -1047,7 +1051,7 @@ export const SAMPLE_PAGES: TonbakPage[] = [
         n('tom', 'thirtysecond'), n('bak_l', 'thirtysecond'), n('bak_r', 'thirtysecond', { placement: 'center' }), n('bak_l', 'thirtysecond'),
         n('riz', 'quarter', { tremolo: true, rizStyle: 'pelang', graceNotes: [{ stroke: 'tom' }] }),
       ]),
-      repeatM(),
+      repeat2M(),
     ],
   },
   {

@@ -112,6 +112,31 @@ describe('Tonbak playback timeline & repeat measure resolution', () => {
     expect(timeline.events[2].startSec).toBeCloseTo(0.5, 5);
     expect(timeline.totalDurationSec).toBeCloseTo(1.0, 5);
   });
+
+  it('replays BOTH preceding measures in order for a 2-bar repeat (repeatBars: 2)', () => {
+    const m0: Measure = { id: 'm0', notes: [mkNote('a1', 'tom', 'quarter')] };
+    const m1: Measure = { id: 'm1', notes: [mkNote('b1', 'riz', 'quarter', { tremolo: true })] };
+    const m2: Measure = { id: 'm2', isRepeatPrevious: true, repeatBars: 2, notes: [] };
+
+    const page: TonbakPage = {
+      id: 'p2bar',
+      title: '2-Bar Repeat Test',
+      timeSignature: { numerator: 2, denominator: 4 },
+      tempo: 120,
+      tempoBeat: 'quarter',
+      measures: [m0, m1, m2],
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    const timeline = buildPlaybackTimeline(page, 0, 2);
+    expect(timeline.events.map((e) => e.note.id)).toEqual(['a1', 'b1', 'a1', 'b1']);
+    expect(timeline.events[2].measureIndex).toBe(2);
+    expect(timeline.events[2].sourceMeasureIndex).toBe(0);
+    expect(timeline.events[3].measureIndex).toBe(2);
+    expect(timeline.events[3].sourceMeasureIndex).toBe(1);
+    expect(timeline.totalDurationSec).toBeCloseTo(2.0, 5);
+  });
 });
 
 describe('OCR JSON normalization & copy-paste cloning', () => {

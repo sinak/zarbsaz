@@ -67,7 +67,7 @@ import { SamplePickerModal } from './components/SamplePickerModal';
 import { SessionRecorderBar } from './components/SessionRecorderBar';
 
 const STORAGE_BOOKS_KEY = 'zarbsaz_books_v6';
-const STORAGE_PAGES_KEY = 'zarbsaz_pages_v9';
+const STORAGE_PAGES_KEY = 'zarbsaz_pages_v10';
 const STORAGE_SNIPPETS_KEY = 'zarbsaz_snippets_v6';
 
 const DEFAULT_BOOK_ID = 'guest-book-rajabi';

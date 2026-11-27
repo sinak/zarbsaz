@@ -1,6 +1,6 @@
 import {
   getNoteQuarterBeats,
-  resolveMeasureWithOrigin,
+  resolveMeasureSequenceWithOrigin,
   type StrokeType,
   type TonbakNote,
   type TonbakPage,
@@ -46,22 +46,21 @@ export function buildPlaybackTimeline(
   const last = Math.max(first, Math.min(endMeasure, page.measures.length - 1));
 
   for (let mIdx = first; mIdx <= last; mIdx += 1) {
-    const { sourceMeasureIndex, notes: resolvedNotes } = resolveMeasureWithOrigin(
-      page.measures,
-      mIdx
-    );
-    for (let nIdx = 0; nIdx < resolvedNotes.length; nIdx += 1) {
-      const note = resolvedNotes[nIdx];
-      const durSec = getNoteQuarterBeats(note) * quarterSec;
-      events.push({
-        measureIndex: mIdx,
-        sourceMeasureIndex,
-        noteIndex: nIdx,
-        note,
-        startSec: cursorSec,
-        durationSec: durSec,
-      });
-      cursorSec += durSec;
+    const resolvedSeq = resolveMeasureSequenceWithOrigin(page.measures, mIdx);
+    for (const { sourceMeasureIndex, notes: resolvedNotes } of resolvedSeq) {
+      for (let nIdx = 0; nIdx < resolvedNotes.length; nIdx += 1) {
+        const note = resolvedNotes[nIdx];
+        const durSec = getNoteQuarterBeats(note) * quarterSec;
+        events.push({
+          measureIndex: mIdx,
+          sourceMeasureIndex,
+          noteIndex: nIdx,
+          note,
+          startSec: cursorSec,
+          durationSec: durSec,
+        });
+        cursorSec += durSec;
+      }
     }
   }
 

@@ -309,7 +309,7 @@ function RestGlyph({ duration, x, y, color }: { duration: TonbakNote['duration']
 
 /** Estimate horizontal weight of a measure so dense 16th/32nd-note measures get more room. */
 function measureWeight(m: Measure): number {
-  if (m.isRepeatPrevious) return 1.1;
+  if (m.isRepeatPrevious) return m.repeatBars === 2 ? 2.1 : 1.1;
   let w = 0.6;
   for (const n of m.notes) {
     const graceExtra = n.graceNotes ? n.graceNotes.length * 0.45 : 0;
@@ -646,7 +646,7 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                       </text>
                     </g>
 
-                    {/* Repeat previous measure sign % */}
+                    {/* Repeat previous measure sign % (with vertical barline through % for 2-bar repeat) */}
                     {measure.isRepeatPrevious ? (
                       <g
                         transform={`translate(${mStartX + mWidth / 2}, ${staffY - 4})`}
@@ -656,6 +656,16 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                         }}
                         style={{ cursor: 'pointer' }}
                       >
+                        {measure.repeatBars === 2 && (
+                          <line
+                            x1={0}
+                            y1={-16}
+                            x2={0}
+                            y2={6}
+                            stroke={isMeasurePlaying ? '#c96200' : '#241e18'}
+                            strokeWidth={1.35}
+                          />
+                        )}
                         <line
                           x1={-10}
                           y1={10}
