@@ -82,12 +82,13 @@ export function trimAndEncodeDrumWav(
     throw new Error('Recording was too quiet — try hitting the tonbak closer to the mic.');
   }
 
-  // Find exact strike onset: first sample exceeding 5% of peak, with 1.5ms pre-attack cushion
-  const threshold = peak * 0.05;
+  // Find exact strike onset: first sample exceeding 3.5% of peak, with 2ms pre-attack cushion
+  // (sensitive enough to preserve a softer pinky first finger on 4-finger cascades)
+  const threshold = peak * 0.035;
   let onset = 0;
   for (let i = 0; i < samples.length; i += 1) {
     if (Math.abs(samples[i]) >= threshold) {
-      onset = Math.max(0, i - Math.round(sampleRate * 0.0015));
+      onset = Math.max(0, i - Math.round(sampleRate * 0.002));
       break;
     }
   }

@@ -382,9 +382,21 @@ export class TonbakSynth {
     }
 
     // One-hand 4-finger cascade (curved arc ◠ over ^ or v in Bahman Rajabi notation:
-    // pinky 1 -> ring 2 -> middle 3 -> index 4 rippling rapidly on one hand)
+    // pinky 1 -> ring 2 -> middle 3 -> index 4 rippling rapidly on one hand).
+    // In Teacher's Kit, pelang_r / pelang_l are real recorded 4-finger cascade samples
+    // (extracted from the teacher's videos or recorded on the user's mic), so play them directly!
+    // Other built-in kits use single-hit rim samples and synthesize the 4-finger cascade.
     if (stroke === 'pelang_r' || stroke === 'pelang_l') {
       const isGrace = (options.durationSec ?? 0.2) < 0.08;
+      if (this.activeKit === 'teacher') {
+        this.playRoundRobinSample(ctx, stroke, time, {
+          gain: isGrace ? humanVel * 0.88 : humanVel,
+          rate: isGrace ? 1.08 : 1.0,
+          maxDurationSec: isGrace ? 0.14 : undefined,
+        });
+        return;
+      }
+
       const stepSec = isGrace ? 0.013 : 0.018;
       // Natural 4-finger gradient: pinky (lighter/brighter) -> ring -> middle -> index (firmer)
       const fingerGains = [0.56, 0.72, 0.86, 1.0];
@@ -417,7 +429,11 @@ export class TonbakSynth {
       const isDorrabCascade = note.graceNotes.some(
         (g) => g.stroke === 'pelang_r' || g.stroke === 'pelang_l'
       );
-      const graceSpacing = isDorrabCascade ? 0.056 : 0.033;
+      const graceSpacing = isDorrabCascade
+        ? this.activeKit === 'teacher'
+          ? 0.078
+          : 0.056
+        : 0.033;
       const totalGrace = note.graceNotes.length * graceSpacing;
       note.graceNotes.forEach((g, idx) => {
         const gt = Math.max(ctx.currentTime + 0.002, time - totalGrace + idx * graceSpacing);

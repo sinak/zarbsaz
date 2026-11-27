@@ -9,7 +9,7 @@ interface CandidateItem {
   meta: string;
 }
 
-type CandidatePoolKey = 'tom' | 'bak_r' | 'bak_l' | 'riz' | 'gliss';
+type CandidatePoolKey = 'tom' | 'bak_r' | 'bak_l' | 'cascade' | 'riz' | 'gliss';
 
 type TargetStrokeKey =
   | 'tom'
@@ -31,8 +31,8 @@ const STROKE_TABS: Array<{
   { key: 'tom', label: 'Tom (تُم)', defaultPool: 'tom', maxPicks: 3 },
   { key: 'bak_r', label: 'Bak R (^)', defaultPool: 'bak_r', maxPicks: 3 },
   { key: 'bak_l', label: 'Bak L (v̇)', defaultPool: 'bak_l', maxPicks: 3 },
-  { key: 'pelang_r', label: 'Pelang R (Dorrab 1)', defaultPool: 'bak_l', maxPicks: 2 },
-  { key: 'pelang_l', label: 'Pelang L (Dorrab 2)', defaultPool: 'bak_l', maxPicks: 2 },
+  { key: 'pelang_r', label: 'Cascade R (◠^)', defaultPool: 'cascade', maxPicks: 2 },
+  { key: 'pelang_l', label: 'Cascade L (◠v)', defaultPool: 'cascade', maxPicks: 2 },
   { key: 'chap', label: 'Chap (^̄)', defaultPool: 'bak_r', maxPicks: 2 },
   { key: 'eshareh', label: 'Eshareh (5)', defaultPool: 'bak_r', maxPicks: 2 },
 ];
@@ -115,6 +115,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   }, [onClose]);
 
   const currentTab = STROKE_TABS.find((t) => t.key === activeStroke) || STROKE_TABS[0];
+  const shortStrokeName = currentTab.label.replace(/\s*\([^)]*\)/, '');
   const currentPicks = selected[activeStroke] || [];
   const items = manifest?.[activePool] || [];
 
@@ -197,7 +198,13 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         offset += c.length;
       }
 
-      const maxDur = recordingStrokeRef.current === 'tom' ? 0.45 : 0.24;
+      const strokeForTrim = recordingStrokeRef.current;
+      const maxDur =
+        strokeForTrim === 'tom'
+          ? 0.45
+          : strokeForTrim === 'pelang_r' || strokeForTrim === 'pelang_l'
+            ? 0.34
+            : 0.24;
       const { wavBytes, stats } = trimAndEncodeDrumWav(merged, recSampleRateRef.current, maxDur);
       const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
       const url = URL.createObjectURL(wavBlob);
@@ -313,7 +320,12 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
       const ctx = new AudioCtx();
       const decoded = await ctx.decodeAudioData(arrBuf);
       const channelData = decoded.getChannelData(0);
-      const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
+      const maxDur =
+        activeStroke === 'tom'
+          ? 0.45
+          : activeStroke === 'pelang_r' || activeStroke === 'pelang_l'
+            ? 0.34
+            : 0.24;
       const { wavBytes, stats } = trimAndEncodeDrumWav(channelData, decoded.sampleRate, maxDur);
       void ctx.close();
 
@@ -455,8 +467,8 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               {isRecording ? <Square size={14} aria-hidden="true" /> : <Mic size={14} aria-hidden="true" />}
               <span>
                 {isRecording
-                  ? `Listening… hit ${currentTab.label.split(' ')[0]} (or Stop)`
-                  : `Record ${currentTab.label.split(' ')[0]} on Mic`}
+                  ? `Listening… play ${shortStrokeName} (or Stop)`
+                  : `Record ${shortStrokeName} on Mic`}
               </span>
             </button>
 
@@ -515,7 +527,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
                 disabled={saving}
                 onClick={() => void handleSaveRecording()}
               >
-                <Check size={14} aria-hidden="true" /> Save as {currentTab.label.split(' ')[0]}
+                <Check size={14} aria-hidden="true" /> Save as {shortStrokeName}
               </button>
             </div>
           )}
@@ -530,7 +542,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         {/* Source Pool Switcher (in case you want to browse another pool for this stroke) */}
         <div className="sampler-pool-bar">
           <span>Browsing recordings:</span>
-          {(['tom', 'bak_r', 'bak_l', 'riz', 'gliss'] as CandidatePoolKey[]).map((pool) => (
+          {(['tom', 'bak_r', 'bak_l', 'cascade', 'riz', 'gliss'] as CandidatePoolKey[]).map((pool) => (
             <button
               key={pool}
               type="button"
@@ -541,6 +553,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               {pool === 'tom' && 'Toms'}
               {pool === 'bak_r' && 'Warm Rims'}
               {pool === 'bak_l' && 'Crisp Rims'}
+              {pool === 'cascade' && '4-Finger Cascades'}
               {pool === 'riz' && 'Riz Rolls'}
               {pool === 'gliss' && 'Glissandos'}
             </button>
@@ -584,7 +597,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
                     }}
                   >
                     {isPicked ? <Check size={14} aria-hidden="true" /> : null}
-                    <span>{isPicked ? 'Picked' : `Use as ${currentTab.label.split(' ')[0]}`}</span>
+                    <span>{isPicked ? 'Picked' : `Use as ${shortStrokeName}`}</span>
                   </button>
                 </div>
               );
@@ -651,6 +664,28 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
               }}
             >
               <Play size={12} aria-hidden="true" /> Gliss Down (↘g)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('pelang_r', sharedTonbakSynth.getCurrentTime() + 0.02);
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Cascade R (◠^)
+            </button>
+            <button
+              type="button"
+              className="btn-mini"
+              onClick={() => {
+                void sharedTonbakSynth.setKit('teacher').then(() => {
+                  sharedTonbakSynth.triggerStroke('pelang_l', sharedTonbakSynth.getCurrentTime() + 0.02);
+                });
+              }}
+            >
+              <Play size={12} aria-hidden="true" /> Cascade L (◠v)
             </button>
             <button
               type="button"
