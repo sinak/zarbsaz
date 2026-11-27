@@ -28,6 +28,7 @@ export const SharedView: React.FC<SharedViewProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playingPosition, setPlayingPosition] = useState<{
     measureIndex: number;
+    sourceMeasureIndex: number;
     noteId: string;
   } | null>(null);
   const [cloning, setCloning] = useState(false);
@@ -64,7 +65,8 @@ export const SharedView: React.FC<SharedViewProps> = ({
       return;
     }
     sharedTonbakPlayer.setCallbacks({
-      onStep: (measureIndex, noteId) => setPlayingPosition({ measureIndex, noteId }),
+      onStep: (measureIndex, sourceMeasureIndex, noteId) =>
+        setPlayingPosition({ measureIndex, sourceMeasureIndex, noteId }),
       onStateChange: (playing) => {
         setIsPlaying(playing);
         if (!playing) setPlayingPosition(null);

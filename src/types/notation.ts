@@ -244,18 +244,26 @@ export function getBeamGroupQuarterSize(ts: TimeSignature): number {
   return 4 / ts.denominator;
 }
 
-/** Resolve `%` repeat measures by looking back to the nearest non-repeat measure. */
-export function resolveMeasureNotes(measures: Measure[], index: number): TonbakNote[] {
+/** Resolve `%` repeat measures and also return the index of the source measure being replayed. */
+export function resolveMeasureWithOrigin(
+  measures: Measure[],
+  index: number
+): { sourceMeasureIndex: number; notes: TonbakNote[] } {
   let cursor = index;
   while (cursor >= 0) {
     const m = measures[cursor];
-    if (!m) return [];
+    if (!m) return { sourceMeasureIndex: index, notes: [] };
     if (!m.isRepeatPrevious) {
-      return m.notes;
+      return { sourceMeasureIndex: cursor, notes: m.notes };
     }
     cursor -= 1;
   }
-  return [];
+  return { sourceMeasureIndex: index, notes: [] };
+}
+
+/** Resolve `%` repeat measures by looking back to the nearest non-repeat measure. */
+export function resolveMeasureNotes(measures: Measure[], index: number): TonbakNote[] {
+  return resolveMeasureWithOrigin(measures, index).notes;
 }
 
 /** Deep-clone a measure with fresh unique IDs (for copy/paste). */

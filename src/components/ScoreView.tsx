@@ -20,7 +20,7 @@ export interface ScoreSelection {
 interface ScoreViewProps {
   page: TonbakPage;
   selection: ScoreSelection | null;
-  playingPosition: { measureIndex: number; noteId: string } | null;
+  playingPosition: { measureIndex: number; sourceMeasureIndex?: number; noteId: string } | null;
   onSelectNote: (measureIndex: number, noteId: string, shiftKey: boolean) => void;
   onSelectMeasure: (measureIndex: number, shiftKey: boolean) => void;
   onQuickAddNote: (measureIndex: number) => void;
@@ -429,6 +429,12 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                 const isLastMeasureOnPage = mIdx === page.measures.length - 1;
                 const selectedMeasure = isMeasureSelected(mIdx);
                 const isMeasurePlaying = playingPosition?.measureIndex === mIdx;
+                const effectiveSourceIdx =
+                  playingPosition?.sourceMeasureIndex ?? playingPosition?.measureIndex;
+                const isReplaySource =
+                  playingPosition !== null &&
+                  playingPosition.measureIndex !== effectiveSourceIdx &&
+                  effectiveSourceIdx === mIdx;
 
                 // Compute X positions for each note inside this measure
                 const innerPadLeft = 18;
@@ -459,8 +465,8 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
 
                 return (
                   <g key={measure.id} className="score-measure">
-                    {/* Measure selection / playback highlight */}
-                    {(selectedMeasure || isMeasurePlaying) && (
+                    {/* Measure selection / playback / repeat-source highlight */}
+                    {(selectedMeasure || isMeasurePlaying || isReplaySource) && (
                       <rect
                         x={mStartX + 1}
                         y={sysTop + 20}
@@ -469,16 +475,24 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                         rx={5}
                         fill={
                           isMeasurePlaying
-                            ? 'rgba(217, 130, 43, 0.14)'
-                            : 'rgba(156, 59, 30, 0.08)'
+                            ? 'rgba(217, 130, 43, 0.16)'
+                            : isReplaySource
+                              ? 'rgba(217, 130, 43, 0.10)'
+                              : 'rgba(156, 59, 30, 0.08)'
                         }
                         stroke={
                           isMeasurePlaying
-                            ? 'rgba(217, 130, 43, 0.65)'
-                            : 'rgba(156, 59, 30, 0.45)'
+                            ? 'rgba(217, 130, 43, 0.72)'
+                            : isReplaySource
+                              ? 'rgba(217, 130, 43, 0.55)'
+                              : 'rgba(156, 59, 30, 0.45)'
                         }
-                        strokeWidth={1.2}
-                        strokeDasharray={selectedMeasure && !isMeasurePlaying ? '4 3' : undefined}
+                        strokeWidth={1.3}
+                        strokeDasharray={
+                          isReplaySource || (selectedMeasure && !isMeasurePlaying)
+                            ? '4 3'
+                            : undefined
+                        }
                       />
                     )}
 
@@ -528,12 +542,22 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                           y1={10}
                           x2={10}
                           y2={-10}
-                          stroke="#241e18"
+                          stroke={isMeasurePlaying ? '#c96200' : '#241e18'}
                           strokeWidth={2.8}
                           strokeLinecap="round"
                         />
-                        <circle cx={-7} cy={-6} r={2.8} fill="#241e18" />
-                        <circle cx={7} cy={6} r={2.8} fill="#241e18" />
+                        <circle
+                          cx={-7}
+                          cy={-6}
+                          r={2.8}
+                          fill={isMeasurePlaying ? '#c96200' : '#241e18'}
+                        />
+                        <circle
+                          cx={7}
+                          cy={6}
+                          r={2.8}
+                          fill={isMeasurePlaying ? '#c96200' : '#241e18'}
+                        />
                       </g>
                     ) : measure.notes.length === 0 ? (
                       <g
@@ -602,8 +626,9 @@ export const ScoreView: React.FC<ScoreViewProps> = ({
                           const isNoteSelected =
                             selection?.noteId === note.id && selection.measureStart === mIdx;
                           const isNotePlaying =
-                            playingPosition?.measureIndex === mIdx &&
-                            playingPosition.noteId === note.id;
+                            (playingPosition?.measureIndex === mIdx ||
+                              effectiveSourceIdx === mIdx) &&
+                            playingPosition?.noteId === note.id;
 
                           const inkColor = isNotePlaying
                             ? '#c96200'

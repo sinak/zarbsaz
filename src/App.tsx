@@ -183,6 +183,7 @@ export function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playingPosition, setPlayingPosition] = useState<{
     measureIndex: number;
+    sourceMeasureIndex: number;
     noteId: string;
   } | null>(null);
   const [loopPlayback, setLoopPlayback] = useState(false);
@@ -748,7 +749,8 @@ export function App() {
         selectionOnly && selection ? selection.measureEnd : activePage.measures.length - 1;
 
       sharedTonbakPlayer.setCallbacks({
-        onStep: (measureIndex, noteId) => setPlayingPosition({ measureIndex, noteId }),
+        onStep: (measureIndex, sourceMeasureIndex, noteId) =>
+          setPlayingPosition({ measureIndex, sourceMeasureIndex, noteId }),
         onStateChange: (playing) => {
           setIsPlaying(playing);
           if (!playing) setPlayingPosition(null);

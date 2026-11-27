@@ -101,8 +101,10 @@ describe('Tonbak playback timeline & repeat measure resolution', () => {
     // Measures 1 and 2 each have 2 notes => 4 total events, starting at t=0
     expect(timeline.events).toHaveLength(4);
     expect(timeline.events[0].measureIndex).toBe(1);
+    expect(timeline.events[0].sourceMeasureIndex).toBe(0);
     expect(timeline.events[0].startSec).toBe(0);
     expect(timeline.events[2].measureIndex).toBe(2);
+    expect(timeline.events[2].sourceMeasureIndex).toBe(0);
     // Each measure is 1.5 quarter beats = 1 dotted-quarter = 0.5s at 120 BPM
     expect(timeline.events[2].startSec).toBeCloseTo(0.5, 5);
     expect(timeline.totalDurationSec).toBeCloseTo(1.0, 5);

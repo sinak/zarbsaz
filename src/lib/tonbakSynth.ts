@@ -1,6 +1,6 @@
 import {
   getNoteQuarterBeats,
-  resolveMeasureNotes,
+  resolveMeasureWithOrigin,
   type StrokeType,
   type TonbakNote,
   type TonbakPage,
@@ -8,6 +8,8 @@ import {
 
 export interface ScheduledEvent {
   measureIndex: number;
+  /** Index of the measure whose notes are actually being played (differs from measureIndex on `%` repeats). */
+  sourceMeasureIndex: number;
   noteIndex: number;
   note: TonbakNote;
   startSec: number;
@@ -44,12 +46,16 @@ export function buildPlaybackTimeline(
   const last = Math.max(first, Math.min(endMeasure, page.measures.length - 1));
 
   for (let mIdx = first; mIdx <= last; mIdx += 1) {
-    const resolvedNotes = resolveMeasureNotes(page.measures, mIdx);
+    const { sourceMeasureIndex, notes: resolvedNotes } = resolveMeasureWithOrigin(
+      page.measures,
+      mIdx
+    );
     for (let nIdx = 0; nIdx < resolvedNotes.length; nIdx += 1) {
       const note = resolvedNotes[nIdx];
       const durSec = getNoteQuarterBeats(note) * quarterSec;
       events.push({
         measureIndex: mIdx,
+        sourceMeasureIndex,
         noteIndex: nIdx,
         note,
         startSec: cursorSec,
@@ -62,7 +68,16 @@ export function buildPlaybackTimeline(
   return { events, totalDurationSec: cursorSec, quarterSec };
 }
 
-type SampleKey = 'tom' | 'bak_r' | 'bak_l' | 'pelang_r' | 'pelang_l' | 'chap' | 'eshareh';
+type SampleKey =
+  | 'tom'
+  | 'bak_r'
+  | 'bak_l'
+  | 'pelang_r'
+  | 'pelang_l'
+  | 'chap'
+  | 'eshareh'
+  | 'riz'
+  | 'gliss';
 
 export type TonbakKitId = 'teacher' | 'cohesive' | 'warm' | 'crisp' | 'original';
 
@@ -110,6 +125,8 @@ function getKitUrls(kit: TonbakKitId): Record<SampleKey, string[]> {
     pelang_l: [`${prefix}/pelang_l_1.wav`, `${prefix}/pelang_l_2.wav`],
     chap: [`${prefix}/chap_1.wav`, `${prefix}/chap_2.wav`],
     eshareh: [`${prefix}/eshareh_1.wav`, `${prefix}/eshareh_2.wav`],
+    riz: kit === 'teacher' ? [`${prefix}/riz_1.wav`, `${prefix}/riz_2.wav`] : [],
+    gliss: kit === 'teacher' ? [`${prefix}/gliss_1.wav`, `${prefix}/gliss_2.wav`] : [],
   };
 }
 
@@ -302,9 +319,43 @@ export class TonbakSynth {
     const humanVel = vel * (0.94 + Math.random() * 0.11);
 
     if (stroke === 'riz') {
-      // Riz dynamically fills 100% of the note's rhythmic space (durationSec)
-      // with a fluid alternating finger cascade right up to the next beat.
       const totalDur = Math.max(0.1, options.durationSec ?? 0.35);
+
+      // Prefer real recorded teacher Riz / Glissando sample, fitted cleanly to fill `totalDur`!
+      const kitMap = this.kitCache.get(this.activeKit);
+      const preferredKey: SampleKey = options.glissando ? 'gliss' : 'riz';
+      const recordedList = kitMap?.get(preferredKey);
+      if (recordedList && recordedList.length > 0 && this.masterBus) {
+        const idx = this.rrCursor.get(preferredKey) ?? 0;
+        const buf = recordedList[idx % recordedList.length];
+        this.rrCursor.set(preferredKey, (idx + 1) % recordedList.length);
+
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        if (options.glissando) {
+          // Gently time-fit the real glissando slide to the note's exact duration
+          const rate = Math.max(0.72, Math.min(1.45, buf.duration / totalDur));
+          src.playbackRate.setValueAtTime(rate, time);
+        } else {
+          // Loop the real Riz roll seamlessly if the note is longer than the clip
+          src.loop = totalDur > buf.duration;
+          src.playbackRate.setValueAtTime(1 + (Math.random() - 0.5) * 0.025, time);
+        }
+
+        const g = ctx.createGain();
+        const peakG = Math.max(0.05, humanVel * 0.92);
+        g.gain.setValueAtTime(0.001, time);
+        g.gain.linearRampToValueAtTime(peakG, time + 0.012);
+        g.gain.setValueAtTime(peakG, Math.max(time + 0.02, time + totalDur - 0.024));
+        g.gain.exponentialRampToValueAtTime(0.001, time + totalDur + 0.006);
+
+        src.connect(g).connect(this.masterBus);
+        src.start(time);
+        src.stop(time + totalDur + 0.012);
+        return;
+      }
+
+      // Fallback for kits without recorded Riz clips: duration-filling alternating finger cascade
       const targetStepSec = 0.038;
       const count = Math.max(3, Math.round(totalDur / targetStepSec));
       const exactStep = totalDur / count;
@@ -313,7 +364,6 @@ export class TonbakSynth {
         const jitter = i === 0 || i === count - 1 ? 0 : (Math.random() - 0.5) * 0.0025;
         const t = Math.max(ctx.currentTime + 0.002, time + i * exactStep + jitter);
         const phase = i / Math.max(1, count - 1);
-        // Natural dynamic arch: gentle entry -> full body -> clean release into next beat
         const swell = 0.62 + 0.34 * Math.sin(phase * Math.PI);
         const key = cascade[i % cascade.length];
         const glissRate = options.glissando ? 1 + phase * 0.28 : 1;
@@ -360,7 +410,7 @@ export class TonbakSynth {
 }
 
 export interface PlayerCallbacks {
-  onStep?: (measureIndex: number, noteId: string) => void;
+  onStep?: (measureIndex: number, sourceMeasureIndex: number, noteId: string) => void;
   onStateChange?: (isPlaying: boolean) => void;
 }
 
@@ -469,7 +519,7 @@ export class TonbakPlayer {
       const delayMs = Math.max(0, (noteTime - now) * 1000);
       const timer = window.setTimeout(() => {
         if (this.isPlaying) {
-          this.callbacks.onStep?.(ev.measureIndex, ev.note.id);
+          this.callbacks.onStep?.(ev.measureIndex, ev.sourceMeasureIndex, ev.note.id);
         }
       }, delayMs);
       this.uiTimers.push(timer);
