@@ -65,6 +65,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   const [recordedWavUrl, setRecordedWavUrl] = useState<string | null>(null);
   const [recordedWavBase64, setRecordedWavBase64] = useState<string | null>(null);
   const [recordedStats, setRecordedStats] = useState<DrumHitStats | null>(null);
+  const [savedLiveStrokes, setSavedLiveStrokes] = useState<Record<string, boolean>>({});
   const [recordError, setRecordError] = useState<string | null>(null);
   const recStreamRef = useRef<MediaStream | null>(null);
   const recCtxRef = useRef<AudioContext | null>(null);
@@ -72,6 +73,8 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   const recSamplesRef = useRef<Float32Array[]>([]);
   const recSampleRateRef = useRef<number>(44100);
   const hitDetectedAtRef = useRef<number | null>(null);
+  const isFinalizingRef = useRef<boolean>(false);
+  const recordingStrokeRef = useRef<TargetStrokeKey>('tom');
   const uploadAudioRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -139,20 +142,49 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
 
   const totalPickedStrokes = Object.values(selected).filter((v) => v.length > 0).length;
 
-  const finalizePcmRecording = () => {
-    try {
-      recProcRef.current?.disconnect();
+  const teardownMic = () => {
+    if (recProcRef.current) {
+      recProcRef.current.onaudioprocess = null;
+      recProcRef.current.disconnect();
       recProcRef.current = null;
-      recStreamRef.current?.getTracks().forEach((t) => t.stop());
-      recStreamRef.current = null;
-      if (recCtxRef.current) {
-        void recCtxRef.current.close();
-        recCtxRef.current = null;
-      }
-      setIsRecording(false);
-      setMicLevel(0);
+    }
+    recStreamRef.current?.getTracks().forEach((t) => t.stop());
+    recStreamRef.current = null;
+    if (recCtxRef.current) {
+      void recCtxRef.current.close();
+      recCtxRef.current = null;
+    }
+    hitDetectedAtRef.current = null;
+    setIsRecording(false);
+    setMicLevel(0);
+  };
+
+  const clearPendingTake = () => {
+    setRecordedWavUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setRecordedWavBase64(null);
+    setRecordedStats(null);
+    setRecordError(null);
+  };
+
+  // Ensure mic is always released if dialog closes
+  useEffect(() => {
+    if (!open) {
+      teardownMic();
+      clearPendingTake();
+    }
+  }, [open]);
+
+  const finalizePcmRecording = () => {
+    if (isFinalizingRef.current) return;
+    isFinalizingRef.current = true;
+    try {
+      teardownMic();
 
       const chunks = recSamplesRef.current;
+      recSamplesRef.current = [];
       const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
       if (totalLen === 0) {
         setRecordError('No audio frames captured from microphone.');
@@ -165,17 +197,22 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         offset += c.length;
       }
 
-      const maxDur = activeStroke === 'tom' ? 0.45 : 0.24;
+      const maxDur = recordingStrokeRef.current === 'tom' ? 0.45 : 0.24;
       const { wavBytes, stats } = trimAndEncodeDrumWav(merged, recSampleRateRef.current, maxDur);
       const wavBlob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
       const url = URL.createObjectURL(wavBlob);
-      setRecordedWavUrl(url);
+      setRecordedWavUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
       setRecordedWavBase64(bytesToBase64(wavBytes));
       setRecordedStats(stats);
       const a = new Audio(url);
       void a.play();
     } catch (err) {
       setRecordError(err instanceof Error ? err.message : String(err));
+    } finally {
+      isFinalizingRef.current = false;
     }
   };
 
@@ -185,14 +222,11 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
   };
 
   const startMicRecording = async () => {
-    setRecordError(null);
+    teardownMic();
+    clearPendingTake();
     setFeedback(null);
-    if (recordedWavUrl) {
-      URL.revokeObjectURL(recordedWavUrl);
-      setRecordedWavUrl(null);
-      setRecordedWavBase64(null);
-      setRecordedStats(null);
-    }
+    isFinalizingRef.current = false;
+    recordingStrokeRef.current = activeStroke;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setRecordError(
@@ -316,8 +350,10 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         activeStroke as Parameters<typeof sharedTonbakSynth.triggerStroke>[0],
         sharedTonbakSynth.getCurrentTime() + 0.02
       );
+      setSavedLiveStrokes((prev) => ({ ...prev, [activeStroke]: true }));
+      clearPendingTake();
       onSaved([activeStroke]);
-      setFeedback(`Saved your live mic recording as ${currentTab.label}!`);
+      setFeedback(`Saved your live mic recording as ${currentTab.label}! Switch tabs to record the next stroke.`);
     } catch (err) {
       setRecordError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -385,6 +421,7 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
         <div className="sampler-stroke-tabs" role="tablist" aria-label="Target tonbak stroke">
           {STROKE_TABS.map((tab) => {
             const count = (selected[tab.key] || []).length;
+            const hasLive = Boolean(savedLiveStrokes[tab.key]);
             return (
               <button
                 key={tab.key}
@@ -393,11 +430,14 @@ export const SamplePickerModal: React.FC<SamplePickerModalProps> = ({
                 aria-selected={activeStroke === tab.key}
                 className={`sampler-tab ${activeStroke === tab.key ? 'active' : ''}`}
                 onClick={() => {
+                  teardownMic();
+                  clearPendingTake();
                   setActiveStroke(tab.key);
                   setActivePool(tab.defaultPool);
                 }}
               >
                 <span>{tab.label}</span>
+                {hasLive && <span className="sampler-tab-badge">🎙</span>}
                 {count > 0 && <span className="sampler-tab-badge">{count}</span>}
               </button>
             );
